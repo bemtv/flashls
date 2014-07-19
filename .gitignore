@@ -2,4 +2,5 @@
 *.swc.cache
 .metadata
 .settings
-HLSPlayer.swf
+bin
+P2PHLSPlayer.swf
