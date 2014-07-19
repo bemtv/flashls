@@ -18,15 +18,15 @@ package com.globo {
         private var _timeHandlerCalled:Number = 0;
 
         public function Player() {
-            stage.scaleMode = StageScaleMode.NO_SCALE;
-            stage.align = StageAlign.TOP_LEFT;
-            stage.frameRate = 30;
-            stage.fullScreenSourceRect = new Rectangle(0, 0, stage.stageWidth, stage.stageHeight);
-            stage.addEventListener(StageVideoAvailabilityEvent.STAGE_VIDEO_AVAILABILITY, _onStageVideoState);
-            stage.addEventListener(Event.RESIZE, _onStageResize);
-
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
+            _setupStage();
+            _setupExternalGetters();
+            _setupExternalCallers();
+            ExternalInterface.call("console.log", "HLS Initialized (0.0.7 - id: " + this.playbackId + ")");
+            setTimeout(flashReady, 50);
+        }
 
+        override protected function _setupExternalGetters():void {
             ExternalInterface.addCallback("globoGetDuration", _getDuration);
             ExternalInterface.addCallback("globoGetState", _getPlaybackState);
             ExternalInterface.addCallback("globoGetPosition", _getPosition);
@@ -38,7 +38,9 @@ package com.globo {
             ExternalInterface.addCallback("globoGetLastProgramDate", _getLastProgramDate);
             ExternalInterface.addCallback("globoGetDroppedFrames", _getDroppedFrames);
             ExternalInterface.addCallback("globoRemoveLevel", _removeLevel);
+        }
 
+        override protected function _setupExternalCallers():void {
             ExternalInterface.addCallback("globoPlayerLoad", _load);
             ExternalInterface.addCallback("globoPlayerPlay", _play);
             ExternalInterface.addCallback("globoPlayerPause", _pause);
@@ -50,9 +52,6 @@ package com.globo {
             ExternalInterface.addCallback("globoPlayerSmoothSetLevel", _smoothSetLevel);
             ExternalInterface.addCallback("globoPlayerSetflushLiveURLCache", _setflushLiveURLCache);
             ExternalInterface.addCallback("globoPlayerSetStageScaleMode", _setScaleMode);
-            ExternalInterface.call("console.log", "HLS Initialized (0.0.7 - id: " + this.playbackId + ")");
-
-            setTimeout(flashReady, 50);
         };
 
         private function _triggerEvent(eventName: String, params:Object=null):void {
@@ -60,7 +59,7 @@ package com.globo {
             ExternalInterface.call('WP3.Mediator.trigger', event, params);
         };
 
-        private function flashReady(): void {
+        protected function flashReady(): void {
             _triggerEvent('flashready');
         };
 
