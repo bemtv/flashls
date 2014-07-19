@@ -20,12 +20,10 @@ package tv.bem {
         }
 
         public function set playbackId(id:String):void {
-            ExternalInterface.call("console.log", "setting playback id: " + id);
             _playbackId = id;
         }
 
         public function get playbackId():String {
-            ExternalInterface.call("console.log", "returning playback id: " + _playbackId);
             return _playbackId;
         }
     }
