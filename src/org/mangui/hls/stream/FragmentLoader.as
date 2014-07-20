@@ -756,10 +756,10 @@ package org.mangui.hls.stream {
                 _fragstreamloader.addEventListener(ProgressEvent.PROGRESS, _fragLoadProgressHandler);
                 _fragstreamloader.addEventListener(HTTPStatusEvent.HTTP_STATUS, _fragLoadHTTPStatusHandler);
                 _fragstreamloader.addEventListener(Event.COMPLETE, _fragLoadCompleteHandler);
-                _keystreamloader = (new urlStreamClass()) as URLStream;
-                _keystreamloader.addEventListener(IOErrorEvent.IO_ERROR, _keyLoadErrorHandler);
-                _keystreamloader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, _keyLoadErrorHandler);
-                _keystreamloader.addEventListener(Event.COMPLETE, _keyLoadCompleteHandler);
+//                _keystreamloader = (new urlStreamClass()) as URLStream;
+//                _keystreamloader.addEventListener(IOErrorEvent.IO_ERROR, _keyLoadErrorHandler);
+//                _keystreamloader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, _keyLoadErrorHandler);
+//                _keystreamloader.addEventListener(Event.COMPLETE, _keyLoadCompleteHandler);
             }
             _demux = null;
             _last_segment_url = frag.url;
