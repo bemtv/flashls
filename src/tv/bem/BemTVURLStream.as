@@ -17,13 +17,13 @@ package tv.bem {
         }
 
         override public function load(request:URLRequest):void {
-            _triggerEvent("requestresource", {url: request.url});
+            _triggerEvent("requestresource", request.url);
             dispatchEvent(new Event(Event.OPEN));
         }
 
-        private function _triggerEvent(eventName: String, params:Object=null):void {
+        private function _triggerEvent(eventName: String, param:String=null):void {
             var event:String = playbackId + ":" + eventName;
-            ExternalInterface.call('WP3.Mediator.trigger', event, params);
+            ExternalInterface.call('WP3.Mediator.trigger', event, param);
         }
     }
 }

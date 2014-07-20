@@ -54,9 +54,9 @@ package com.globo {
             ExternalInterface.addCallback("globoPlayerSetStageScaleMode", _setScaleMode);
         };
 
-        private function _triggerEvent(eventName: String, params:Object=null):void {
+        private function _triggerEvent(eventName: String, param:String=null):void {
             var event:String = playbackId + ":" + eventName;
-            ExternalInterface.call('WP3.Mediator.trigger', event, params);
+            ExternalInterface.call('WP3.Mediator.trigger', event, param);
         };
 
         protected function flashReady(): void {
@@ -91,7 +91,7 @@ package com.globo {
         };
 
         override protected function _stateHandler(event : HLSEvent) : void {
-            _triggerEvent('playbackstate', {state: event.state});
+            _triggerEvent('playbackstate', event.state);
         };
 
         override protected function _mediaTimeHandler(event : HLSEvent) : void {
@@ -109,15 +109,15 @@ package com.globo {
                     _videoWidth = videoWidth;
                     _resize();
                     if (videoHeight >= 720) {
-                        _triggerEvent('highdefinition', {isHD: true});
+                        _triggerEvent('highdefinition', "true");
                     } else {
-                        _triggerEvent('highdefinition', {isHD: false});
+                        _triggerEvent('highdefinition', "false");
                     }
                 }
             }
 
             if (_timeHandlerCalled == 10) {
-                _triggerEvent('timeupdate', {duration: _duration, position: _hls.position});
+                _triggerEvent('timeupdate', _duration + "," + _hls.position);
                 _timeHandlerCalled = 0;
             }
         };
