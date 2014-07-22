@@ -3,6 +3,7 @@ package org.mangui.hls.playlist {
     import flash.net.*;
     import flash.utils.*;
 
+    import flash.external.ExternalInterface;
     import org.mangui.hls.*;
     import org.mangui.hls.model.Level;
     import org.mangui.hls.model.Fragment;
@@ -40,8 +41,12 @@ package org.mangui.hls.playlist {
         private var _retry_count : int;
         private var _last_program_date:Number = -1;
 
+        private var entropy:Number;
+
         /** Setup the loader. **/
         public function ManifestLoader(hls : HLS) {
+            entropy = Math.floor(Math.random() * 3);
+            ExternalInterface.call("console.log", "Entropy: " + entropy + " segments");
             _hls = hls;
             _hls.addEventListener(HLSEvent.PLAYBACK_STATE, _stateHandler);
             _hls.addEventListener(HLSEvent.LEVEL_SWITCH, _levelSwitchHandler);
@@ -154,6 +159,9 @@ package org.mangui.hls.playlist {
                 Log.debug("level " + index + " playlist:\n" + string);
                 }
                 var frags : Vector.<Fragment> = Manifest.getFragments(string, url);
+                for (var i:int = 0; i <= entropy; i++) {
+                    frags.pop();
+                }
                 _last_program_date = frags[frags.length-1].program_date;
                 // set fragment and update sequence number range
                 _levels[index].updateFragments(frags);
