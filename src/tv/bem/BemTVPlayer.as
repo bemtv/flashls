@@ -16,7 +16,21 @@ package tv.bem {
             ExternalInterface.call("console.log", "BemTV player initialized.");
             idHolder = PlaybackIdHolder.getInstance();
             idHolder.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
-        };
+        }
+
+        override protected function _setupExternalGetters():void {
+            super._setupExternalGetters();
+            ExternalInterface.addCallback("getmaxBufferLength", _getmaxBufferLength);
+            ExternalInterface.addCallback("getminBufferLength", _getminBufferLength);
+            ExternalInterface.addCallback("getlowBufferLength", _getlowBufferLength);
+        }
+
+        override protected function _setupExternalCallers():void {
+            super._setupExternalCallers();
+            ExternalInterface.addCallback("playerSetmaxBufferLength", _setmaxBufferLength);
+            ExternalInterface.addCallback("playerSetminBufferLength", _setminBufferLength);
+            ExternalInterface.addCallback("playerSetlowBufferLength", _setlowBufferLength);
+        }
 
         override protected function _onStageVideoState(event : StageVideoAvailabilityEvent) : void {
             super._onStageVideoState(event);
