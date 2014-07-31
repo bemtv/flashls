@@ -15,7 +15,6 @@ package com.globo {
     public class Player extends ChromelessPlayer {
         private var _url:String;
         private var playbackId:String;
-        private var _timeHandlerCalled:Number = 0;
 
         public function Player() {
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
@@ -97,7 +96,6 @@ package com.globo {
         override protected function _mediaTimeHandler(event : HLSEvent) : void {
             _duration = event.mediatime.duration;
             _media_position = event.mediatime.position;
-            _timeHandlerCalled += 1;
 
             var videoWidth : int = _video ? _video.videoWidth : _stageVideo.videoWidth;
             var videoHeight : int = _video ? _video.videoHeight : _stageVideo.videoHeight;
@@ -114,11 +112,6 @@ package com.globo {
                         _triggerEvent('highdefinition', "false");
                     }
                 }
-            }
-
-            if (_timeHandlerCalled == 10) {
-                _triggerEvent('timeupdate', _duration + "," + _hls.position);
-                _timeHandlerCalled = 0;
             }
         };
 
