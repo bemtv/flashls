@@ -1,16 +1,14 @@
 #!/bin/bash
 FLEXPATH=~/airsdk/
 
-OPT_DEBUG="-library-path+=../lib/as3crypto.swc \
-    -use-network=false \
+OPT_DEBUG="-use-network=false \
     -optimize=true \
     -compress=true \
     -strict=true \
     -use-gpu=true \
     -define=CONFIG::LOGGING,true"
 
-OPT_RELEASE="-library-path+=../lib/as3crypto.swc \
-    -use-network=false \
+OPT_RELEASE="-use-network=false \
     -optimize=true \
     -compress=true \
     -strict=true \
