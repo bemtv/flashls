@@ -21,7 +21,7 @@ package org.mangui.hls {
         /** The quality monitor. **/
         private var _fragmentLoader : FragmentLoader;
         /** The manifest parser. **/
-        private var _manifestLoader : ManifestLoader;
+        public var _manifestLoader : ManifestLoader;
         /** HLS NetStream **/
         private var _hlsNetStream : HLSNetStream;
         /** HLS URLStream **/
