@@ -41,11 +41,12 @@ package org.mangui.hls.playlist {
         private var _retry_count : int;
         private var _last_program_date:Number = -1;
 
-        public var entropy:Number;
+        private var entropy:Number;
 
         /** Setup the loader. **/
         public function ManifestLoader(hls : HLS) {
             entropy = Math.floor(Math.random() * 4);
+            ExternalInterface.call("console.log", "Entropy: " + entropy + " segments");
             _hls = hls;
             _hls.addEventListener(HLSEvent.PLAYBACK_STATE, _stateHandler);
             _hls.addEventListener(HLSEvent.LEVEL_SWITCH, _levelSwitchHandler);

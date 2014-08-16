@@ -30,16 +30,11 @@ package tv.bem {
             ExternalInterface.addCallback("playerSetmaxBufferLength", _setmaxBufferLength);
             ExternalInterface.addCallback("playerSetminBufferLength", _setminBufferLength);
             ExternalInterface.addCallback("playerSetlowBufferLength", _setlowBufferLength);
-            ExternalInterface.addCallback("playerSetEntropy", _setEntropy);
         }
 
         override protected function _onStageVideoState(event : StageVideoAvailabilityEvent) : void {
             super._onStageVideoState(event);
             _hls.URLstream = BemTVURLStream as Class;
-        }
-
-        protected function _setEntropy(num:Number):void {
-            _hls._manifestLoader.entropy = num;
         }
     }
 }
