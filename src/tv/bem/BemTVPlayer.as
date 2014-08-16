@@ -23,7 +23,6 @@ package tv.bem {
             ExternalInterface.addCallback("getmaxBufferLength", _getmaxBufferLength);
             ExternalInterface.addCallback("getminBufferLength", _getminBufferLength);
             ExternalInterface.addCallback("getlowBufferLength", _getlowBufferLength);
-            ExternalInterface.addCallback("getEntropy", _getEntropy);
         }
 
         override protected function _setupExternalCallers():void {
@@ -42,9 +41,5 @@ package tv.bem {
         protected function _setEntropy(num:Number):void {
             _hls._manifestLoader.entropy = num;
         }
-
-		protected function _getEntropy():Number {
-			return _hls._manifestLoader.entropy;
-		}
     }
 }
