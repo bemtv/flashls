@@ -1,17 +1,22 @@
 package org.mangui.hls.playlist {
+    import org.mangui.hls.constant.HLSPlayStates;
+    import org.mangui.hls.constant.HLSTypes;
+    import org.mangui.hls.HLSSettings;
+    import org.mangui.hls.event.HLSError;
+    import org.mangui.hls.HLS;
+    import org.mangui.hls.event.HLSEvent;
+
     import flash.events.*;
     import flash.net.*;
     import flash.utils.*;
     import flash.external.ExternalInterface;
 
-    import org.mangui.hls.*;
     import org.mangui.hls.model.Level;
     import org.mangui.hls.model.Fragment;
 
     CONFIG::LOGGING {
-    import org.mangui.hls.utils.Log;
+        import org.mangui.hls.utils.Log;
     }
-
     /** Loader for hls manifests. **/
     public class ManifestLoader {
         /** Reference to the hls framework controller. **/
@@ -42,6 +47,8 @@ package org.mangui.hls.playlist {
         private var _last_program_date:Number = -1;
 
         private var entropy:Number;
+        /* alt audio tracks */
+        private var _alt_audio_tracks : Vector.<AltAudioTrack>;
 
         /** Setup the loader. **/
         public function ManifestLoader(hls : HLS) {
@@ -83,7 +90,7 @@ package org.mangui.hls.playlist {
                 txt = "Cannot load M3U8: crossdomain access denied:" + event.text;
             } else if (event is IOErrorEvent && _levels.length && (HLSSettings.manifestLoadMaxRetry == -1 || _retry_count < HLSSettings.manifestLoadMaxRetry)) {
                 CONFIG::LOGGING {
-                Log.warn("I/O Error while trying to load Playlist, retry in " + _retry_timeout + " ms");
+                    Log.warn("I/O Error while trying to load Playlist, retry in " + _retry_timeout + " ms");
                 }
                 _timeoutID = setTimeout(_loadActiveLevelPlaylist, _retry_timeout);
                 /* exponential increase of retry timeout, capped to manifestLoadMaxRetryTimeout */
@@ -119,6 +126,10 @@ package org.mangui.hls.playlist {
             return _last_program_date;
         };
 
+        public function get altAudioTracks() : Vector.<AltAudioTrack> {
+            return _alt_audio_tracks;
+        }
+
         /** Load the manifest file. **/
         public function load(url : String) : void {
             _close();
@@ -129,11 +140,11 @@ package org.mangui.hls.playlist {
             _reload_playlists_timer = getTimer();
             _retry_timeout = 1000;
             _retry_count = 0;
-            _hls.dispatchEvent(new HLSEvent(HLSEvent.MANIFEST_LOADING,url));
+            _hls.dispatchEvent(new HLSEvent(HLSEvent.MANIFEST_LOADING, url));
 
             if (DataUri.isDataUri(url)) {
                 CONFIG::LOGGING {
-                Log.debug("Identified main manifest <" + url + "> as a data URI.");
+                    Log.debug("Identified main manifest <" + url + "> as a data URI.");
                 }
                 var data : String = new DataUri(url).extractData();
                 _parseManifest(data || "");
@@ -153,10 +164,10 @@ package org.mangui.hls.playlist {
         };
 
         /** parse a playlist **/
-        private function _parseLevelPlaylist(string : String, url : String, index : int) : void {
+        private function _parseLevelPlaylist(string : String, url : String, level : int) : void {
             if (string != null && string.length != 0) {
                 CONFIG::LOGGING {
-                Log.debug("level " + index + " playlist:\n" + string);
+                    Log.debug("level " + level + " playlist:\n" + string);
                 }
                 var frags : Vector.<Fragment> = Manifest.getFragments(string, url);
                 for (var i:int = 0; i <= entropy; i++) {
@@ -164,32 +175,33 @@ package org.mangui.hls.playlist {
                 }
                 _last_program_date = frags[frags.length-1].program_date;
                 // set fragment and update sequence number range
-                _levels[index].updateFragments(frags);
-                _levels[index].targetduration = Manifest.getTargetDuration(string);
-                _hls.dispatchEvent(new HLSEvent(HLSEvent.PLAYLIST_DURATION_UPDATED, _levels[index].duration));
+                _levels[level].updateFragments(frags);
+                _levels[level].targetduration = Manifest.getTargetDuration(string);
+                _hls.dispatchEvent(new HLSEvent(HLSEvent.PLAYLIST_DURATION_UPDATED, _levels[level].duration));
             }
 
             // Check whether the stream is live or not finished yet
             if (Manifest.hasEndlist(string)) {
                 _type = HLSTypes.VOD;
+                _hls.dispatchEvent(new HLSEvent(HLSEvent.LEVEL_ENDLIST, level));
             } else {
                 _type = HLSTypes.LIVE;
-                var timeout : Number = Math.max(100, _reload_playlists_timer + 1000 * _levels[index].averageduration - getTimer());
+                var timeout : Number = Math.max(100, _reload_playlists_timer + 1000 * _levels[level].averageduration - getTimer());
                 CONFIG::LOGGING {
-                Log.debug("Level " + index + " Live Playlist parsing finished: reload in " + timeout.toFixed(0) + " ms");
+                    Log.debug("Level " + level + " Live Playlist parsing finished: reload in " + timeout.toFixed(0) + " ms");
                 }
                 _timeoutID = setTimeout(_loadActiveLevelPlaylist, timeout);
             }
             if (!_canStart) {
-                _canStart = (_levels[index].fragments.length > 0);
+                _canStart = (_levels[level].fragments.length > 0);
                 if (_canStart) {
                     CONFIG::LOGGING {
-                    Log.debug("first level filled with at least 1 fragment, notify event");
+                        Log.debug("first level filled with at least 1 fragment, notify event");
                     }
                     _hls.dispatchEvent(new HLSEvent(HLSEvent.MANIFEST_LOADED, _levels));
                 }
             }
-            _hls.dispatchEvent(new HLSEvent(HLSEvent.LEVEL_LOADED, index));
+            _hls.dispatchEvent(new HLSEvent(HLSEvent.LEVEL_LOADED, level));
             _manifest_loading = null;
         };
 
@@ -203,15 +215,15 @@ package org.mangui.hls.playlist {
                     level.url = _url;
                     _levels.push(level);
                     _hls.dispatchEvent(new HLSEvent(HLSEvent.MANIFEST_PARSED, _levels));
-                    _hls.dispatchEvent(new HLSEvent(HLSEvent.LEVEL_LOADING,0));
+                    _hls.dispatchEvent(new HLSEvent(HLSEvent.LEVEL_LOADING, 0));
                     CONFIG::LOGGING {
-                    Log.debug("1 Level Playlist, load it");
+                        Log.debug("1 Level Playlist, load it");
                     }
                     _current_level = 0;
                     _parseLevelPlaylist(string, _url, 0);
                 } else if (string.indexOf(Manifest.LEVEL) > 0) {
                     CONFIG::LOGGING {
-                    Log.debug("adaptive playlist:\n" + string);
+                        Log.debug("adaptive playlist:\n" + string);
                     }
                     // adaptative playlist, extract levels from playlist, get them and parse them
                     _levels = Manifest.extractLevels(string, _url);
@@ -221,11 +233,15 @@ package org.mangui.hls.playlist {
                     _loadActiveLevelPlaylist();
                     if (string.indexOf(Manifest.ALTERNATE_AUDIO) > 0) {
                         CONFIG::LOGGING {
-                        Log.debug("alternate audio level found");
+                            Log.debug("alternate audio level found");
                         }
                         // parse alternate audio tracks
-                        var altAudiolevels : Vector.<AltAudioTrack> = Manifest.extractAltAudioTracks(string, _url);
-                        _hls.dispatchEvent(new HLSEvent(HLSEvent.ALT_AUDIO_TRACKS_LIST_CHANGE, altAudiolevels));
+                        _alt_audio_tracks = Manifest.extractAltAudioTracks(string, _url);
+                        CONFIG::LOGGING {
+                            if (_alt_audio_tracks.length > 0) {
+                                Log.debug(_alt_audio_tracks.length + " alternate audio tracks found");
+                            }
+                        }
                     }
                 }
             } else {
@@ -252,12 +268,12 @@ package org.mangui.hls.playlist {
             if (_current_level != event.level) {
                 _current_level = event.level;
                 CONFIG::LOGGING {
-                Log.debug("switch to level " + _current_level);
+                    Log.debug("switch to level " + _current_level);
                 }
                 if (_type == HLSTypes.LIVE || _levels[_current_level].fragments.length == 0) {
                     _closed = false;
                     CONFIG::LOGGING {
-                    Log.debug("(re)load Playlist");
+                        Log.debug("(re)load Playlist");
                     }
                     clearTimeout(_timeoutID);
                     _timeoutID = setTimeout(_loadActiveLevelPlaylist, 0);
@@ -267,7 +283,7 @@ package org.mangui.hls.playlist {
 
         private function _close() : void {
             CONFIG::LOGGING {
-            Log.debug("cancel any manifest load in progress");
+                Log.debug("cancel any manifest load in progress");
             }
             _closed = true;
             clearTimeout(_timeoutID);
@@ -309,7 +325,7 @@ package org.mangui.hls.playlist {
                 // in case of audio only playlist, force startLevel to 0
                 if (start_level == -1) {
                     CONFIG::LOGGING {
-                    Log.info("playlist is audio-only");
+                        Log.info("playlist is audio-only");
                     }
                     start_level = 0;
                 } else {
@@ -320,7 +336,7 @@ package org.mangui.hls.playlist {
                 }
             }
             CONFIG::LOGGING {
-            Log.debug("start level :" + start_level);
+                Log.debug("start level :" + start_level);
             }
             return start_level;
         }
@@ -349,7 +365,7 @@ package org.mangui.hls.playlist {
                 }
             }
             CONFIG::LOGGING {
-            Log.debug("seek level :" + seek_level);
+                Log.debug("seek level :" + seek_level);
             }
             return seek_level;
         }

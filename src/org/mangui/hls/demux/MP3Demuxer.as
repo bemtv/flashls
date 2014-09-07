@@ -1,7 +1,7 @@
 package org.mangui.hls.demux {
     import flash.utils.ByteArray;
 
-    import org.mangui.hls.HLSAudioTrack;
+    import org.mangui.hls.model.AudioTrack;
     import org.mangui.hls.flv.FLVTag;
 
     CONFIG::LOGGING {
@@ -33,11 +33,6 @@ package org.mangui.hls.demux {
             _data = null;
         }
 
-        /** flush demux */
-        public function flush() : void {
-            return;
-        }
-
         public function notifycomplete() : void {
             CONFIG::LOGGING {
                 Log.debug("MP3: extracting MP3 tags");
@@ -63,8 +58,8 @@ package org.mangui.hls.demux {
                 audioTags.push(audioTag);
                 i++;
             }
-            var audiotracks : Vector.<HLSAudioTrack> = new Vector.<HLSAudioTrack>();
-            audiotracks.push(new HLSAudioTrack('MP3 ES', HLSAudioTrack.FROM_DEMUX, 0, true));
+            var audiotracks : Vector.<AudioTrack> = new Vector.<AudioTrack>();
+            audiotracks.push(new AudioTrack('MP3 ES', AudioTrack.FROM_DEMUX, 0, true));
             // report unique audio track. dont check return value as obviously the track will be selected
             _callback_audioselect(audiotracks);
             CONFIG::LOGGING {

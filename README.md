@@ -7,7 +7,7 @@ The plugin is compatible with the following players:
   - [Flowplayer](#flowplayer) 3.2.12
   - [OSMF 2.0](#strobe-media-playback-smp-and-other-osmf-based-players) based players (such as SMP and GrindPlayer)
   - [Video.js][1] 4.6.2 (adaptation done here [https://github.com/mangui/video-js-swf][2])
-  - [MediaElement.js][3] (adaptation done here [https://github.com/mangui/mediaelement][4])
+  - [MediaElement.js][3] (adaptation done here [https://github.com/mangui/mediaelement][4], now integrated in official MediaElement.js release since 2.15.0)
 
 ## Features
 
@@ -114,8 +114,8 @@ flowplayer("player", 'http://releases.flowplayer.org/swf/flowplayer-3.2.12.swf',
   // ...
   plugins: {
     httpstreaming: {
-      // HLSProvider configuration options
-      url: 'HLSProviderFlowPlayer.swf',
+      // flashls configuration options
+      url: 'flashlsFlowPlayer.swf',
       hls_debug: false,
       hls_debug2: false,
       hls_lowbufferlength: 3,
@@ -140,8 +140,8 @@ var playerOptions = {
   // Strobe Media Playback configuration options
   // ...
   source: 'http://example.com/stream.m3u8',
-  // HLSProvider configuration options
-  plugin_hls: "HLSProvider.swf",
+  // flashls configuration options
+  plugin_hls: "flashlsOSMF.swf",
   hls_debug: false,
   hls_debug2: false,
   hls_minbufferlength: -1,

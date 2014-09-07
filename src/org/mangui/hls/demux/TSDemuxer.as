@@ -1,12 +1,11 @@
 package org.mangui.hls.demux {
-  	import org.mangui.hls.flv.FLVTag;
-    import org.mangui.hls.HLSAudioTrack;
+    import flash.display.DisplayObject;
+    import org.mangui.hls.flv.FLVTag;
+    import org.mangui.hls.model.AudioTrack;
 
     import flash.events.Event;
     import flash.events.EventDispatcher;
-    import flash.events.TimerEvent;
     import flash.utils.ByteArray;
-    import flash.utils.Timer;
     
     CONFIG::LOGGING {
     import org.mangui.hls.utils.Log;
@@ -24,8 +23,6 @@ package org.mangui.hls.demux {
         private static const SYNCBYTE : uint = 0x47;
         /** TS Packet size in byte. **/
         private static const PACKETSIZE : uint = 188;
-        /** loop counter to avoid blocking **/
-        private static const COUNT : uint = 5000;
         /** Packet ID of the PAT (is always 0). **/
         private static const PAT_ID : int = 0;
         /** Packet ID of the SDT (is always 17). **/
@@ -43,8 +40,8 @@ package org.mangui.hls.demux {
         private var _audioIsAAC : Boolean;
         /** Vector of audio/video tags **/
         private var _tags : Vector.<FLVTag>;
-        /** Timer for reading packets **/
-        private var _timer : Timer;
+        /** Display Object used to schedule parsing **/
+        private var _displayObject : DisplayObject;
         /** Byte data to be read **/
         private var _data : ByteArray;
         /* callback functions for audio selection, and parsing progress/complete */
@@ -84,7 +81,7 @@ package org.mangui.hls.demux {
         }
 
         /** Transmux the M2TS file into an FLV file. **/
-        public function TSDemuxer(callback_audioselect : Function, callback_progress : Function, callback_complete : Function) {
+        public function TSDemuxer(displayObject : DisplayObject, callback_audioselect : Function, callback_progress : Function, callback_complete : Function) {
             _curAudioPES = null;
             _curVideoPES = null;
             _curVideoTag = null;
@@ -97,8 +94,7 @@ package org.mangui.hls.demux {
             _pmtId = _avcId = _audioId = -1;
             _audioIsAAC = false;
             _tags = new Vector.<FLVTag>();
-            _timer = new Timer(0, 0);
-            _timer.addEventListener(TimerEvent.TIMER, _readData);
+            _displayObject = displayObject;
         };
 
         /** append new TS data */
@@ -107,10 +103,10 @@ package org.mangui.hls.demux {
                 _data = new ByteArray();
                 _data_complete = false;
                 _read_position = 0;
+                _displayObject.addEventListener(Event.ENTER_FRAME, _parseTimer);
             }
             _data.position = _data.length;
             _data.writeBytes(data, data.position);
-            _timer.start();
         }
 
         /** cancel demux operation */
@@ -124,20 +120,19 @@ package org.mangui.hls.demux {
             _curVideoTag = null;
             _adtsFrameOverflow = null;
             _tags = new Vector.<FLVTag>();
-            _timer.stop();            
+            _displayObject.removeEventListener(Event.ENTER_FRAME, _parseTimer);
         }
 
         public function notifycomplete() : void {
             _data_complete = true;
         }
 
-        /** Read a small chunk of packets each time to avoid blocking **/
-        private function _readData(e : Event) : void {
-            var i : uint = 0;
+        /** Parse a limited amount of packets each time to avoid blocking **/
+        private function _parseTimer(e : Event) : void {
+            var start_time : Number = new Date().getTime();
             _data.position = _read_position;
-            while ((_data.bytesAvailable >= 188) && i < COUNT) {
-                _readPacket();
-                i++;
+            while ((_data.bytesAvailable >= 188) && ((new Date().getTime() - start_time) < 20)) {
+                _parseTSPacket();
             }
             if (_tags.length) {
                 _callback_progress(_tags);
@@ -155,16 +150,16 @@ package org.mangui.hls.demux {
                         CONFIG::LOGGING {
                         Log.error("TS: no PMT found, report parsing complete");
                         }
-                    } else {
-                        _timer.stop();
                     }
+                    _displayObject.removeEventListener(Event.ENTER_FRAME, _parseTimer);
+                    _flush();
                     _callback_complete();
                 }
             }
         }
 
         /** flux demux **/
-        public function flush() : void {
+        private function _flush() : void {
             CONFIG::LOGGING {
                 Log.debug("TS: flushing demux");
             }            
@@ -367,8 +362,8 @@ package org.mangui.hls.demux {
             }
         }
 
-        /** Read TS packet. **/
-        private function _readPacket() : void {
+        /** Parse TS packet. **/
+        private function _parseTSPacket() : void {
             // Each packet is 188 bytes.
             var todo : uint = TSDemuxer.PACKETSIZE;
             // Sync byte.
@@ -420,7 +415,7 @@ package org.mangui.hls.demux {
             // Parse the PES, split by Packet ID.
             switch (pid) {
                 case PAT_ID:
-                    todo -= _readPAT(stt);
+                    todo -= _parsePAT(stt);
                     if (_pmtParsed == false) {
                         null; // just to avoid compilaton warnings if CONFIG::LOGGING is false
                         CONFIG::LOGGING {
@@ -433,7 +428,7 @@ package org.mangui.hls.demux {
                         CONFIG::LOGGING {
                         Log.debug("TS: PMT found");
                         }
-                        todo -= _readPMT(stt);
+                        todo -= _parsePMT(stt);
                         _pmtParsed = true;
                         // if PMT was not parsed before, and some unknown packets have been skipped in between,
                         // rewind to beginning of the stream, it helps recovering bad segmented content
@@ -499,8 +494,8 @@ package org.mangui.hls.demux {
             _data.position += todo;
         };
 
-        /** Read the Program Association Table. **/
-        private function _readPAT(stt : uint) : int {
+        /** Parse the Program Association Table. **/
+        private function _parsePAT(stt : uint) : int {
             var pointerField : uint = 0;
             if (stt) {
                 pointerField = _data.readUnsignedByte();
@@ -522,11 +517,11 @@ package org.mangui.hls.demux {
         };
 
         /** Read the Program Map Table. **/
-        private function _readPMT(stt : uint) : int {
+        private function _parsePMT(stt : uint) : int {
             var pointerField : uint = 0;
 
             /** audio Track List */
-            var audioList : Vector.<HLSAudioTrack> = new Vector.<HLSAudioTrack>();
+            var audioList : Vector.<AudioTrack> = new Vector.<AudioTrack>();
 
             if (stt) {
                 pointerField = _data.readUnsignedByte();
@@ -551,7 +546,7 @@ package org.mangui.hls.demux {
                 var sid : uint = _data.readUnsignedShort() & 0x1fff;
                 if (typ == 0x0F) {
                     // ISO/IEC 13818-7 ADTS AAC (MPEG-2 lower bit-rate audio)
-                    audioList.push(new HLSAudioTrack('TS/AAC ' + audioList.length, HLSAudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
+                    audioList.push(new AudioTrack('TS/AAC ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
                 } else if (typ == 0x1B) {
                     // ITU-T Rec. H.264 and ISO/IEC 14496-10 (lower bit-rate video)
                     _avcId = sid;
@@ -561,7 +556,7 @@ package org.mangui.hls.demux {
                 } else if (typ == 0x03 || typ == 0x04) {
                     // ISO/IEC 11172-3 (MPEG-1 audio)
                     // or ISO/IEC 13818-3 (MPEG-2 halved sample rate audio)
-                    audioList.push(new HLSAudioTrack('TS/MP3 ' + audioList.length, HLSAudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
+                    audioList.push(new AudioTrack('TS/MP3 ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
                 }
                 // es_info_length
                 var sel : uint = _data.readUnsignedShort() & 0xFFF;
@@ -578,7 +573,7 @@ package org.mangui.hls.demux {
             }
             // provide audio track List to audio select callback. this callback will return the selected audio track
             var audioPID : int;
-            var audioTrack : HLSAudioTrack = _callback_audioselect(audioList);
+            var audioTrack : AudioTrack = _callback_audioselect(audioList);
             if (audioTrack) {
                 audioPID = audioTrack.id;
                 _audioIsAAC = (audioTrack.title.indexOf("AAC") > -1);
