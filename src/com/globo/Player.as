@@ -3,6 +3,8 @@ package com.globo {
     import org.mangui.chromeless.ChromelessPlayer;
     import org.mangui.hls.*;
     import org.mangui.hls.utils.Log;
+    import org.mangui.hls.event.HLSEvent;
+	import org.mangui.hls.event.HLSError;
 
     import flash.display.*;
     import flash.media.Video;
