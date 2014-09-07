@@ -15,6 +15,9 @@
   ga('send', 'pageview');
 
 </script>
+
+<script type="text/javascript" src="../libs/ParsedQueryString.js"></script>
+
 <style type="text/css">
 a:link {
   color: blue;
@@ -39,7 +42,8 @@ a:visited {
 
 Check with your own Playlist ! <a href="http://kb2.adobe.com/cps/142/tn_14213.html">beware of Cross Domain Policy</a><br>
 <input id="userInput" value="http://184.72.239.149/vod/smil:BigBuckBunny.smil/playlist.m3u8" size="80"> <button onclick="userSubmit()">Load</button><br>
-
+<a id="playbackLink" href="">playback link</a>
+<p>
 <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
  codebase="" id="mymoviename" width="640" height="360">
 <param name="movie"  value="../../bin/debug/flashlsChromeless.swf?inline=1" />
@@ -89,7 +93,7 @@ Check with your own Playlist ! <a href="http://kb2.adobe.com/cps/142/tn_14213.ht
       <td>Min Buffer Size</td>
       <td>Buffer Size</td>
       <td>Max Buffer Size</td>
-      <td>Quality Level</td>
+      <td>Load Level</td>
       <td>Audio Track Id</td>
       <td>Log debug</td>
       <td>Log debug2</td>
@@ -184,6 +188,7 @@ function loadStream(url) {
   stop();
   current_url = url;
   load(url);
+  document.getElementById("playbackLink").href= window.location.href.split('?')[0] + "?src=" + encodeURIComponent(url);
   document.getElementById('userInput').value = url;
 }
 
@@ -192,7 +197,12 @@ function listStreams(list, container) {
     entry.innerHTML = "<a href='#' onclick='return loadStream(\""+list[i].file+"\")'>"+list[i].title+"</a>";
     document.getElementById(container).appendChild(entry);
   }
-  loadStream(list[0].file);
+  var pqs = new ParsedQueryString();
+  var url = pqs.param("src");
+  if(url == "") {
+  	url = list[0].file;
+  }
+  loadStream(url);
 }
 
 function appendLog(txt)
@@ -227,7 +237,7 @@ function play(url) {
   }
   var obj = getFlashMovieObject(player_id);
   if(obj != null) {
-    obj.playerPlay();
+    obj.playerPlay(-1);
     appendLog("start playback");
   }
 }
@@ -460,9 +470,13 @@ function onError(code,url,message) {
   appendLog("onError():error code:"+ code + " url:" + url + " message:" + message);
 }
 
-function onFragment(bandwidth,level,width) {
-  //appendLog("onFragment(): bandwidth:" + bandwidth + " level:" + level + " width:" + width);
+function onFragmentLoaded(bandwidth,level,width) {
+  appendLog("onFragmentLoaded(): bandwidth:" + bandwidth + " level:" + level + " width:" + width);
 }
+function onFragmentPlaying(playmetrics) {
+  appendLog("onFragmentPlaying(): metrics:" + playmetrics.level + " sn:" + playmetrics.seqnum + " cc:" + playmetrics.continuity_counter + " tags:" + playmetrics.tag_list);
+}
+
 function onManifest(duration) {
   appendLog("manifest loaded, playlist duration:"+ duration.toFixed(2));
   document.getElementById('mediaInfo').rows[2].cells[2].innerHTML =  duration.toFixed(2);

@@ -1,6 +1,6 @@
 package org.mangui.osmf.plugins.traits {
     import org.mangui.hls.HLS;
-    import org.mangui.hls.HLSEvent;
+    import org.mangui.hls.event.HLSEvent;
     import org.osmf.traits.DynamicStreamTrait;
     import org.osmf.utils.OSMFStrings;
     
@@ -17,7 +17,7 @@ package org.mangui.osmf.plugins.traits {
             }
             _hls = hls;
             _hls.addEventListener(HLSEvent.LEVEL_SWITCH, _levelSwitchHandler);
-            super(true, 0, hls.levels.length);
+            super(true, _hls.startlevel, hls.levels.length);
         }
 
         override public function dispose() : void {
