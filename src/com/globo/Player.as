@@ -57,7 +57,7 @@ package com.globo {
 
         private function _triggerEvent(eventName: String, param:String=null):void {
             var event:String = playbackId + ":" + eventName;
-            ExternalInterface.call('WP3.Mediator.trigger', event, param);
+            ExternalInterface.call('Clappr.Mediator.trigger', event, param);
         };
 
         protected function flashReady(): void {
