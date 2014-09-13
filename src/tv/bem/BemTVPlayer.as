@@ -5,6 +5,7 @@ package tv.bem {
     import flash.events.*;
     import org.mangui.hls.utils.*;
     import flash.geom.Rectangle;
+    import flash.system.Security;
 
     import com.globo.Player;
     import tv.bem.BemTVURLStream;
@@ -15,7 +16,9 @@ package tv.bem {
 
         public function BemTVPlayer() {
             super();
-            ExternalInterface.call("console.log", "BemTV player initialized.");
+            ExternalInterface.call("console.log", "BemTV player initialized!");
+            Security.allowDomain("*");
+            Security.allowInsecureDomain("*");
             idHolder = PlaybackIdHolder.getInstance();
             idHolder.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
         }

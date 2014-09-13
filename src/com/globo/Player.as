@@ -5,6 +5,7 @@ package com.globo {
     import org.mangui.hls.utils.Log;
     import org.mangui.hls.event.HLSEvent;
 	import org.mangui.hls.event.HLSError;
+	import flash.system.Security;
 
     import flash.display.*;
     import flash.media.Video;
@@ -20,10 +21,12 @@ package com.globo {
 
         public function Player() {
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
+			Security.allowDomain("*");
+			Security.allowInsecureDomain("*");
             _setupStage();
             _setupExternalGetters();
             _setupExternalCallers();
-            ExternalInterface.call("console.log", "HLS Initialized (0.0.7 - id: " + this.playbackId + ")");
+            ExternalInterface.call("console.log", "HLS Initialized (0.0.8 - id: " + this.playbackId + ")");
             setTimeout(flashReady, 50);
         }
 
