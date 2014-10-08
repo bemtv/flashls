@@ -34,13 +34,20 @@ package org.mangui.hls.model {
         public var tags_pts_max_audio : Number;
         public var tags_pts_min_video : Number;
         public var tags_pts_max_video : Number;
+        public var tags_audio_found : Boolean;
+        public var tags_video_found : Boolean;
         public var tags : Vector.<FLVTag>;
+        /* video dimension */
+        public var video_width : int;
+        public var video_height : int;
 
         /** Fragment metrics **/
         public function FragmentData() {
             this.pts_start = NaN;
             this.pts_start_computed = NaN;
             this.valid = true;
+            this.video_width = 0;
+            this.video_height = 0;
         };
 
         public function get pts_min() : Number {
@@ -76,7 +83,7 @@ package org.mangui.hls.model {
         }
 
         public function get tag_pts_start_offset() : Number {
-            if (audio_found) {
+            if (tags_audio_found) {
                 return tags_pts_min_audio - pts_min_audio;
             } else {
                 return tags_pts_min_video - pts_min_video;
@@ -84,7 +91,7 @@ package org.mangui.hls.model {
         }
 
         public function get tag_pts_end_offset() : Number {
-            if (audio_found) {
+            if (tags_audio_found) {
                 return tags_pts_max_audio - pts_min_audio;
             } else {
                 return tags_pts_max_video - pts_min_video;

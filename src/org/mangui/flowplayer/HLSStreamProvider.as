@@ -265,7 +265,7 @@ package org.mangui.flowplayer {
             _hls.stream.seek(seconds);
             _position = seconds;
             _bufferedTime = seconds;
-            _clip.dispatch(ClipEventType.SEEK);
+            _clip.dispatch(ClipEventType.SEEK, seconds);
             return;
         }
 
