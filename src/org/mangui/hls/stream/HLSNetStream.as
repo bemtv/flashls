@@ -70,6 +70,8 @@ package org.mangui.hls.stream {
         private var _cur_level : int;
         private var _cur_sn : int;
         private var _playbackLevel : int;
+        /** Netstream client proxy */
+        private var _client : HLSNetStreamClient;
 
         /** Create the buffer. **/
         public function HLSNetStream(connection : NetConnection, hls : HLS, fragmentLoader : FragmentLoader) : void {
@@ -84,9 +86,12 @@ package org.mangui.hls.stream {
             _seekState = HLSSeekStates.IDLE;
             _timer = new Timer(100, 0);
             _timer.addEventListener(TimerEvent.TIMER, _checkBuffer);
+	    _client = new HLSNetStreamClient();
+            _client.registerCallback("onHLSFragmentChange", onHLSFragmentChange);
+            super.client = _client;
         };
 
-        public function onHLSFragmentChange(level : int, seqnum : int, cc : int, ... tags) : void {
+        public function onHLSFragmentChange(level : int, seqnum : int, cc : int, audio_only : Boolean, width : int, height : int, ... tags) : void {
             CONFIG::LOGGING {
                 Log.debug("playing fragment(level/sn/cc):" + level + "/" + seqnum + "/" + cc);
             }
@@ -98,7 +103,7 @@ package org.mangui.hls.stream {
                     Log.debug("custom tag:" + tags[i]);
                 }
             }
-            _hls.dispatchEvent(new HLSEvent(HLSEvent.FRAGMENT_PLAYING, new HLSPlayMetrics(level, seqnum, cc, tag_list)));
+            _hls.dispatchEvent(new HLSEvent(HLSEvent.FRAGMENT_PLAYING, new HLSPlayMetrics(level, seqnum, cc, audio_only, width, height, tag_list)));
         }
 
         /** Check the bufferlength. **/
@@ -253,7 +258,7 @@ package org.mangui.hls.stream {
         };
 
         /** Add a fragment to the buffer. **/
-        private function _loaderCallback(level : int, cc : int, sn : int, tag_list : Vector.<String>, tags : Vector.<FLVTag>, min_pts : Number, max_pts : Number, hasDiscontinuity : Boolean, start_position : Number, program_date : Number) : void {
+        private function _loaderCallback(level : int, cc : int, sn : int, audio_only : Boolean, width : int, height : int, tag_list : Vector.<String>, tags : Vector.<FLVTag>, min_pts : Number, max_pts : Number, hasDiscontinuity : Boolean, start_position : Number, program_date : Number) : void {
             var tag : FLVTag;
             /* PTS of first tag that will be pushed into FLV tag buffer */
             var first_pts : Number;
@@ -329,7 +334,6 @@ package org.mangui.hls.stream {
                 // same continuity than previously, update its max PTS
                 _buffer_cur_max_pts = max_pts;
             }
-
             /* detect if we are switching to a new fragment. in that case inject a metadata tag
              * Netstream will notify the metadata back when starting playback of this fragment  
              */
@@ -343,6 +347,9 @@ package org.mangui.hls.stream {
                 data.writeObject(level);
                 data.writeObject(sn);
                 data.writeObject(cc);
+                data.writeObject(audio_only);
+                data.writeObject(width);
+                data.writeObject(height);
                 for each (var custom_tag : String in tag_list) {
                     data.writeObject(custom_tag);
                 }
@@ -505,7 +512,7 @@ package org.mangui.hls.stream {
             _seek_position_real = Number.NEGATIVE_INFINITY;
             _seek_in_progress = true;
             _reached_vod_end = false;
-            _cur_level = _cur_sn = NaN;
+            _cur_level = _cur_sn = -1;
             if (HLSSettings.minBufferLength == -1) {
                 _buffer_threshold = _autoBufferManager.minBufferLength;
             } else {
@@ -534,6 +541,14 @@ package org.mangui.hls.stream {
             super.pause();
             _timer.start();
         };
+
+        public override function set client(client : Object) : void {
+            _client.delegate = client;
+        };
+
+        public override function get client() : Object {
+            return _client.delegate;
+        }
 
         /** Stop playback. **/
         override public function close() : void {
