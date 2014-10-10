@@ -16,7 +16,7 @@ package tv.bem {
 
         public function BemTVPlayer() {
             super();
-            ExternalInterface.call("console.log", "BemTV player initialized!");
+            ExternalInterface.call("console.log", "BemTV Player initialized.");
             Security.allowDomain("*");
             Security.allowInsecureDomain("*");
             idHolder = PlaybackIdHolder.getInstance();
@@ -35,6 +35,8 @@ package tv.bem {
             ExternalInterface.addCallback("playerSetmaxBufferLength", _setmaxBufferLength);
             ExternalInterface.addCallback("playerSetminBufferLength", _setminBufferLength);
             ExternalInterface.addCallback("playerSetlowBufferLength", _setlowBufferLength);
+            ExternalInterface.addCallback("playerSetLevel", _setLevel);
+            ExternalInterface.addCallback("playerSmoothSetLevel", _smoothSetLevel);
         }
 
         override protected function _onStageVideoState(event : StageVideoAvailabilityEvent) : void {
