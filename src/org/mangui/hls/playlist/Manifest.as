@@ -322,7 +322,9 @@ package org.mangui.hls.playlist {
                     } while (line.length <= 1);
 
                     level.url = Manifest._extractURL(line, base);
-                    levels.push(level);
+					if (level.url.indexOf("-audio") < 0) {
+						levels.push(level);
+					}
                 }
             }
             var levelsLength:int = levels.length;

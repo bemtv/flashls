@@ -8,7 +8,6 @@ package org.mangui.hls {
     import flash.events.EventDispatcher;
     import flash.events.Event;
 
-    import org.mangui.hls.playlist.AltAudioTrack;
     import org.mangui.hls.model.Level;
     import org.mangui.hls.event.HLSEvent;
     import org.mangui.hls.playlist.AltAudioTrack;

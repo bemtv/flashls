@@ -1,7 +1,7 @@
 #!/bin/bash
 FLEXPATH=~/airsdk/
 
-OPT_DEBUG="-library-path+=../lib/as3crypto.swc \
+OPT_DEBUG="
     -use-network=false \
     -optimize=true \
     -compress=true \
@@ -9,24 +9,10 @@ OPT_DEBUG="-library-path+=../lib/as3crypto.swc \
     -use-gpu=true \
     -define=CONFIG::LOGGING,true"
 
-OPT_RELEASE="-library-path+=../lib/as3crypto.swc \
+OPT_RELEASE="
     -use-network=false \
     -optimize=true \
     -define=CONFIG::LOGGING,false"
-
-echo "Compiling bin/debug/flashls.swc"
-$FLEXPATH/bin/compc \
-    $OPT_DEBUG \
-    -include-sources ../src/org/mangui/hls \
-    -output ../bin/debug/flashls.swc \
-    -target-player="10.1"
-
-echo "Compiling bin/release/flashls.swc"
-$FLEXPATH/bin/compc \
-    $OPT_RELEASE \
-    -include-sources ../src/org/mangui/hls \
-    -output ../bin/release/flashls.swc \
-    -target-player="10.1"
 
 echo "Compiling bin/release/HLSPlayer.swf"
 $FLEXPATH/bin/mxmlc ../src/com/globo/Player.as \
@@ -51,4 +37,5 @@ $FLEXPATH/bin/mxmlc ../src/com/globo/Player.as \
     -default-background-color=0x000000 \
     -default-frame-rate=60
 ./add-opt-in.py ../bin/debug/HLSPlayer.swf
+
 
