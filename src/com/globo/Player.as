@@ -77,6 +77,7 @@ package com.globo {
             for each (var level : Level in _hls.levels) {
                 var newLevel : Level = new Level();
                 newLevel.bitrate = level.bitrate;
+                newLevel.averageduration = level.averageduration;
                 levels.push(newLevel);
             }
             return levels;
