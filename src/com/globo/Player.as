@@ -4,10 +4,12 @@ package com.globo {
     import org.mangui.hls.*;
     import org.mangui.hls.utils.Log;
     import org.mangui.hls.event.HLSEvent;
-	import org.mangui.hls.event.HLSError;
-	import flash.system.Security;
+    import org.mangui.hls.event.HLSError;
+
+    import org.mangui.hls.model.Level;
 
     import flash.display.*;
+    import flash.system.Security;
     import flash.media.Video;
     import flash.events.*;
     import flash.external.ExternalInterface;
@@ -18,15 +20,15 @@ package com.globo {
     public class Player extends ChromelessPlayer {
         private var _url:String;
         private var playbackId:String;
+        private var _timeHandlerCalled:Number = 0;
+	private var _totalErrors:Number = 0;
 
         public function Player() {
+            super();
+            Security.allowDomain("*");
+            Security.allowInsecureDomain("*");
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
-			Security.allowDomain("*");
-			Security.allowInsecureDomain("*");
-            _setupStage();
-            _setupExternalGetters();
-            _setupExternalCallers();
-            ExternalInterface.call("console.log", "HLS Initialized (0.0.8 - id: " + this.playbackId + ")");
+            ExternalInterface.call("console.log", "HLS Initialized (0.1.8 - id: " + this.playbackId + ")");
             setTimeout(flashReady, 50);
         }
 
@@ -56,6 +58,9 @@ package com.globo {
             ExternalInterface.addCallback("globoPlayerSmoothSetLevel", _smoothSetLevel);
             ExternalInterface.addCallback("globoPlayerSetflushLiveURLCache", _setflushLiveURLCache);
             ExternalInterface.addCallback("globoPlayerSetStageScaleMode", _setScaleMode);
+            ExternalInterface.addCallback("globoPlayerSetmaxBufferLength", _setmaxBufferLength);
+            ExternalInterface.addCallback("globoPlayerSetminBufferLength", _setminBufferLength);
+            ExternalInterface.addCallback("globoPlayerSetlowBufferLength", _setlowBufferLength);
         };
 
         private function _triggerEvent(eventName: String, param:String=null):void {
@@ -67,6 +72,16 @@ package com.globo {
             _triggerEvent('flashready');
         };
 
+        override protected function _getLevels() : Vector.<Level> {
+            var levels : Vector.<Level> = new Vector.<Level>();
+            for each (var level : Level in _hls.levels) {
+                var newLevel : Level = new Level();
+                newLevel.bitrate = level.bitrate;
+                levels.push(newLevel);
+            }
+            return levels;
+        };
+
         override protected function _onStageVideoState(event : StageVideoAvailabilityEvent) : void {
             var available : Boolean = (event.availability == StageVideoAvailability.AVAILABLE);
             _hls = new HLS();
@@ -74,6 +89,7 @@ package com.globo {
             _hls.addEventListener(HLSEvent.ERROR, _errorHandler);
             _hls.addEventListener(HLSEvent.MEDIA_TIME, _mediaTimeHandler);
             _hls.addEventListener(HLSEvent.PLAYBACK_STATE, _stateHandler);
+            _hls.addEventListener(HLSEvent.FRAGMENT_LOADED, _fragmentLoadedHandler);
 
             if (available && stage.stageVideos.length > 0) {
                 _stageVideo = stage.stageVideos[0];
@@ -98,9 +114,15 @@ package com.globo {
             _triggerEvent('playbackstate', event.state);
         };
 
+        override protected function _fragmentLoadedHandler(event : HLSEvent) : void {
+            _triggerEvent('fragmentloaded');
+        };
+
+
         override protected function _mediaTimeHandler(event : HLSEvent) : void {
             _duration = event.mediatime.duration;
             _media_position = event.mediatime.position;
+            _timeHandlerCalled += 1;
 
             var videoWidth : int = _video ? _video.videoWidth : _stageVideo.videoWidth;
             var videoHeight : int = _video ? _video.videoHeight : _stageVideo.videoHeight;
@@ -118,6 +140,11 @@ package com.globo {
                     }
                 }
             }
+
+            if (_timeHandlerCalled == 10) {
+                _triggerEvent('timeupdate', _duration + "," + _hls.position);
+                _timeHandlerCalled = 0;
+            }
         };
 
         override protected function _load(url : String) : void {
@@ -126,14 +153,26 @@ package com.globo {
         };
 
         override protected function _errorHandler(event : HLSEvent) : void {
-            if (event.error.code !== HLSError.FORBIDDEN || event.error.code !== HLSError.MANIFEST_LOADING_CROSSDOMAIN_ERROR) {
-                CONFIG::LOGGING {
-                Log.info("Error: " + event.error.code + " : " + event.error.url + " : " + event.error.msg);
-                Log.info("Rebooting.");
-                }
-                _load(_url);
-                _play();
-            }
+	    if (event.error.code == HLSError.FORBIDDEN) {
+		CONFIG::LOGGING { Log.info("Error, FORBIDDEN.") }
+		 _triggerEvent('playbackerror');
+		_stop();
+	    } else if (event.error.code == HLSError.MANIFEST_LOADING_CROSSDOMAIN_ERROR) {
+		CONFIG::LOGGING { Log.info("Error, CROSS DOMAIN.") }
+	        _triggerEvent('playbackerror');
+		_stop();
+	    } else {
+		if (_totalErrors < 4) {
+		    CONFIG::LOGGING { Log.info("Unknown error, rebooting.") }
+		    _totalErrors++;
+		    _load(_url);
+		    _play();
+		} else {
+		    CONFIG::LOGGING { Log.info("Error, aborting.") }
+	            _triggerEvent('playbackerror');
+		    _stop();
+		}
+	    }
         };
 
         private function _getDroppedFrames() : int {

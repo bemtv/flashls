@@ -71,7 +71,7 @@ package org.mangui.hls {
          *
          * Default is 64000.
          */
-        public static var fragmentLoadMaxRetryTimeout : Number = 64000;
+        public static var fragmentLoadMaxRetryTimeout : Number = 16000;
         /**
          * If set to true, live playlist will be flushed from URL cache before reloading
          * (this is to workaround some cache issues with some combination of Flash Player / IE version)
