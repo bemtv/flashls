@@ -46,14 +46,13 @@ package org.mangui.hls.playlist {
         private var _retry_count : int;
         private var _last_program_date:Number = -1;
 
-        private var entropy:Number;
+        private var _delay:Number;
         /* alt audio tracks */
         private var _alt_audio_tracks : Vector.<AltAudioTrack>;
 
         /** Setup the loader. **/
         public function ManifestLoader(hls : HLS) {
-            entropy = Math.floor(Math.random() * 4);
-            ExternalInterface.call("console.log", "Entropy: " + entropy + " segments");
+            _delay = Math.floor(Math.random() * 4);
             _hls = hls;
             _hls.addEventListener(HLSEvent.PLAYBACK_STATE, _stateHandler);
             _hls.addEventListener(HLSEvent.LEVEL_SWITCH, _levelSwitchHandler);
@@ -170,7 +169,7 @@ package org.mangui.hls.playlist {
                     Log.debug("level " + level + " playlist:\n" + string);
                 }
                 var frags : Vector.<Fragment> = Manifest.getFragments(string, url);
-                for (var i:int = 0; i <= entropy; i++) {
+                for (var i:int = 0; i <= _delay; i++) {
                     frags.pop();
                 }
                 _last_program_date = frags[frags.length-1].program_date;
@@ -302,6 +301,10 @@ package org.mangui.hls.playlist {
                 _close();
             }
         };
+
+	 public function get delay() : Number {
+	     return _delay;
+	 }
 
         public function get startlevel() : int {
             var start_level : int = -1;

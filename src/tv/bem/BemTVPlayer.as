@@ -16,7 +16,7 @@ package tv.bem {
 
         public function BemTVPlayer() {
             super();
-            ExternalInterface.call("console.log", "BemTV Player (0.0.1)");
+            ExternalInterface.call("console.log", "BemTV Player (0.0.2)");
             idHolder = PlaybackIdHolder.getInstance();
             idHolder.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
         }
@@ -26,6 +26,7 @@ package tv.bem {
             ExternalInterface.addCallback("getmaxBufferLength", _getmaxBufferLength);
             ExternalInterface.addCallback("getminBufferLength", _getminBufferLength);
             ExternalInterface.addCallback("getlowBufferLength", _getlowBufferLength);
+            ExternalInterface.addCallback("getDelay", _getDelay);
         }
 
         override protected function _setupExternalCallers():void {
@@ -39,5 +40,9 @@ package tv.bem {
             super._onStageVideoState(event);
             _hls.URLstream = BemTVURLStream as Class;
         }
+
+	 private function _getDelay():Number {
+	     return _hls.delay;
+	 }
     }
 }

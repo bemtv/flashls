@@ -74,6 +74,10 @@ package org.mangui.hls {
             return _manifestLoader.startlevel;
         };
 
+	 public function get delay() : Number {
+	     return _manifestLoader.delay;
+	 }
+
         /** Return the quality level used after a seek operation **/
         public function get seeklevel() : int {
             return _manifestLoader.seeklevel;
