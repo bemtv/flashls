@@ -44,7 +44,7 @@ package org.mangui.hls.stream {
         /** Quality level of the last fragment load. **/
         private var _level : int;
         /* overrided quality_manual_level level */
-        private var _manual_level : int = -1;
+        private var _manual_level : int = 0;
         /** Reference to the manifest levels. **/
         private var _levels : Vector.<Level>;
         /** Util for loading the fragment. **/
