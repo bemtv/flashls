@@ -84,6 +84,8 @@ package org.mangui.hls.stream {
         /** reference to previous/current fragment */
         private var _frag_previous : Fragment;
         private var _frag_current : Fragment;
+        /** any level loaded ?  */
+        private var _level_loaded: Boolean = false;
 
         /** Create the loader. **/
         public function FragmentLoader(hls : HLS, audioTrackController : AudioTrackController) : void {
@@ -106,7 +108,7 @@ package org.mangui.hls.stream {
         /**  fragment loading Timer **/
         private function _checkLoading(e : Event) : void {
             // dont try to load any fragment if _level is not defined (should be the case if manifest not yet loaded for example
-            if (isNaN(_level)) {
+            if (!_level_loaded) {
                 return;
             }
             // check fragment loading status, try to load a new fragment if needed
@@ -730,6 +732,7 @@ package org.mangui.hls.stream {
         /** Store the manifest data. **/
         private function _levelLoadedHandler(event : HLSEvent) : void {
             _last_loaded_level = event.level;
+            _level_loaded = true;
         };
 
         /** triggered by demux, it should return the audio track to be parsed */
