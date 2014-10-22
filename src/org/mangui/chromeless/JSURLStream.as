@@ -115,7 +115,11 @@ package org.mangui.chromeless {
                 end_pos = _read_position + CHUNK_SIZE;
             }
             var tmpString : String = _base64_resource.substring(start_pos, end_pos);
-            _resource.writeBytes(Base64.decode(tmpString));
+            try {
+                _resource.writeBytes(Base64.decode(tmpString));
+            } catch (error:Error) {
+                resourceLoadingError();
+            }
             if (decode_completed) {
                 _timer.stop();
                 CONFIG::LOGGING {
