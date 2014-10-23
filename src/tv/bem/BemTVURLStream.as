@@ -27,6 +27,7 @@ package tv.bem {
         }
 
         override protected function resourceLoadingError() : void {
+            super.resourceLoadingError();
             _triggerEvent("decodeerror");
         }
 
