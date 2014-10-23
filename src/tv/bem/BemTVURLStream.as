@@ -25,6 +25,15 @@ package tv.bem {
             var event:String = playbackId + ":" + eventName;
             ExternalInterface.call('Clappr.Mediator.trigger', event, param);
         }
+
+        override protected function resourceLoadingError() : void {
+            _triggerEvent("decodeerror");
+        }
+
+        override protected function resourceLoadingSuccess() : void {
+            _triggerEvent("decodesuccess");
+        }
+
     }
 }
 
