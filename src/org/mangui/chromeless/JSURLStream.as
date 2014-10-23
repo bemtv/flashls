@@ -125,6 +125,8 @@ package org.mangui.chromeless {
                 _resource.writeBytes(Base64.decode(tmpString));
             } catch (error:Error) {
                 resourceLoadingError();
+                _timer.stop();
+                _resource.position = 0;
             }
             if (decode_completed) {
                 _timer.stop();
