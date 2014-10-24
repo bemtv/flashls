@@ -85,9 +85,6 @@ package org.mangui.chromeless {
         }
 
         protected function resourceLoaded(base64Resource : String) : void {
-            CONFIG::LOGGING {
-            Log.info("resourceLoaded");
-            }           
             _resource = new ByteArray();
             _read_position = 0;
             _timer = new Timer(0, 0);
@@ -124,9 +121,10 @@ package org.mangui.chromeless {
             try {
                 _resource.writeBytes(Base64.decode(tmpString));
             } catch (error:Error) {
-                resourceLoadingError();
                 _timer.stop();
-                _resource.position = 0;
+		_resource = new ByteArray();
+                this.dispatchEvent(new Event(Event.COMPLETE));
+                resourceLoadingError();
             }
             if (decode_completed) {
                 _timer.stop();

@@ -165,9 +165,6 @@ package org.mangui.hls.playlist {
         /** parse a playlist **/
         private function _parseLevelPlaylist(string : String, url : String, level : int) : void {
             if (string != null && string.length != 0) {
-                CONFIG::LOGGING {
-                    Log.debug("level " + level + " playlist:\n" + string);
-                }
                 var frags : Vector.<Fragment> = Manifest.getFragments(string, url);
                 for (var i:int = 0; i <= _delay; i++) {
                     frags.pop();
