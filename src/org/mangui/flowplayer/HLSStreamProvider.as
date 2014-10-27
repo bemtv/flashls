@@ -71,6 +71,7 @@ package org.mangui.flowplayer {
             _hls.addEventListener(HLSEvent.MANIFEST_LOADED, _manifestHandler);
             _hls.addEventListener(HLSEvent.MEDIA_TIME, _mediaTimeHandler);
             _hls.addEventListener(HLSEvent.PLAYBACK_STATE, _stateHandler);
+            _hls.addEventListener(HLSEvent.ID3_UPDATED, _ID3Handler);
 
             var cfg : Object = _model.config;
             for (var object : String in cfg) {
@@ -84,16 +85,22 @@ package org.mangui.flowplayer {
         }
 
         private function _completeHandler(event : HLSEvent) : void {
-            _clip.dispatch(ClipEventType.FINISH);
+            // dispatch a before event because the finish has default behavior that can be prevented by listeners
+            _clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
         };
 
         private function _errorHandler(event : HLSEvent) : void {
+        };
+
+        private function _ID3Handler(event : HLSEvent) : void {
+            _clip.dispatch(ClipEventType.NETSTREAM_EVENT, "onID3", event.ID3Data);
         };
 
         private function _manifestHandler(event : HLSEvent) : void {
             _duration = event.levels[_hls.startlevel].duration;
             _isManifestLoaded = true;
             _clip.duration = _duration;
+            _clip.stopLiveOnPause = false;
             _clip.dispatch(ClipEventType.METADATA);
             _seekable = true;
             // if (_hls.type == HLSTypes.LIVE) {
@@ -101,9 +108,10 @@ package org.mangui.flowplayer {
             // } else {
             // _seekable = true;
             // }
-            if (_pauseAfterStart == false) {
-                _hls.stream.play();
-                _clip.dispatch(ClipEventType.SEEK);
+            _hls.stream.play();
+            _clip.dispatch(ClipEventType.SEEK);
+            if (_pauseAfterStart) {
+                pause(new ClipEvent(ClipEventType.PAUSE));
             }
         };
 
@@ -137,24 +145,20 @@ package org.mangui.flowplayer {
             switch(event.state) {
                 case HLSPlayStates.IDLE:
                 case HLSPlayStates.PLAYING:
+                case HLSPlayStates.PAUSED:
                     _clip.dispatch(ClipEventType.BUFFER_FULL);
                     break;
                 case HLSPlayStates.PLAYING_BUFFERING:
-                    _clip.dispatch(ClipEventType.BUFFER_EMPTY);
-                    break;
                 case HLSPlayStates.PAUSED_BUFFERING:
                     _clip.dispatch(ClipEventType.BUFFER_EMPTY);
-                    _clip.dispatch(ClipEventType.PAUSE);
                     break;
-                case HLSPlayStates.PAUSED:
-                    _clip.dispatch(ClipEventType.BUFFER_FULL);
-                    _clip.dispatch(ClipEventType.PAUSE);
+                default:
                     break;
             }
         };
 
         /**
-         * Starts loading the specivied clip. Once video data is available the provider
+         * Starts loading the specified clip. Once video data is available the provider
          * must set it to the clip using <code>clip.setContent()</code>. Typically the video
          * object passed to the clip is an instance of <a href="http://livedocs.adobe.com/flash/9.0/ActionScriptLangRefV3/flash/media/Video.html">flash.media.Video</a>.
          *
@@ -225,6 +229,9 @@ package org.mangui.flowplayer {
             Log.info("pause()");
             }
             _hls.stream.pause();
+            if (event) {
+                _clip.dispatch(ClipEventType.PAUSE);
+            }
             return;
         }
 

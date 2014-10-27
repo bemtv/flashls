@@ -28,7 +28,7 @@ package com.globo {
             Security.allowDomain("*");
             Security.allowInsecureDomain("*");
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
-            ExternalInterface.call("console.log", "HLS Initialized (0.1.8 - id: " + this.playbackId + ")");
+            ExternalInterface.call("console.log", "HLS Initialized (0.1.9 - id: " + this.playbackId + ")");
             setTimeout(flashReady, 50);
         }
 
@@ -77,6 +77,7 @@ package com.globo {
             for each (var level : Level in _hls.levels) {
                 var newLevel : Level = new Level();
                 newLevel.bitrate = level.bitrate;
+                newLevel.averageduration = level.averageduration;
                 levels.push(newLevel);
             }
             return levels;

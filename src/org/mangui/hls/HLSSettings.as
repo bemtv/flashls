@@ -57,6 +57,21 @@ package org.mangui.hls {
          * Default is HLSSeekMode.ACCURATE_SEEK.
          */
         public static var seekMode : String = HLSSeekMode.ACCURATE_SEEK;
+        /** max nb of retries for Key Loading in case I/O errors are met,
+         *      0, means no retry, error will be triggered automatically
+         *     -1 means infinite retry
+         */
+        public static var keyLoadMaxRetry : int = -1;
+
+        /** keyLoadMaxRetryTimeout
+
+         * Maximum key retry timeout (in milliseconds) in case I/O errors are met.
+         * Every fail on key request, player will exponentially increase the timeout to try again.
+         * It starts waiting 1 second (1000ms), than 2, 4, 8, 16, until keyLoadMaxRetryTimeout is reached.
+         *
+         * Default is 64000.
+         */
+        public static var keyLoadMaxRetryTimeout : Number = 64000;
         /** max nb of retries for Fragment Loading in case I/O errors are met,
          *      0, means no retry, error will be triggered automatically
          *     -1 means infinite retry
@@ -94,12 +109,18 @@ package org.mangui.hls {
          */
         public static var manifestLoadMaxRetryTimeout : Number = 64000;
 
+        /**
+         * If greater than 0, specifies the preferred bitrate.
+         * If -1, and startFromLevel is not specified, automatic start level selection will be used.
+         * This parameter, if set, will take priority over startFromLevel.
+         */
+        public static var startFromBitrate : Number = -1;
 
         /** start level :
          *  from 0 to 1 : indicates the "normalized" preferred bitrate. As such, if it is 0.5, the closest to the middle bitrate will be selected and used first.
          * -1 : automatic start level selection, playback will start from level matching download bandwidth (determined from download of first segment)
          */
-        public static var startFromLevel : int = 0;
+        public static var startFromLevel : Number = 0;
 
         /** seek level :
          *  from 0 to 1 : indicates the "normalized" preferred bitrate. As such, if it is 0.5, the closest to the middle bitrate will be selected and used first.

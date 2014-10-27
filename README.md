@@ -6,7 +6,7 @@ The plugin is compatible with the following players:
 
   - [Flowplayer](#flowplayer) 3.2.12
   - [OSMF 2.0](#strobe-media-playback-smp-and-other-osmf-based-players) based players (such as SMP and GrindPlayer)
-  - [Video.js][1] 4.6.2 (adaptation done here [https://github.com/mangui/video-js-swf][2])
+  - [Video.js][1] 4.6, 4.7, 4.8 (adaptation done here [https://github.com/mangui/video-js-swf][2])
   - [MediaElement.js][3] (adaptation done here [https://github.com/mangui/mediaelement][4], now integrated in official MediaElement.js release since 2.15.0)
 
 ## Features
@@ -20,7 +20,8 @@ The plugin is compatible with the following players:
     - Accurate seeking to exact requested position
     - Key frame based seeking (nearest key frame)
     - Segment based seeking (beginning of segment)
-  - AES-128 decryption 
+  - Timed Metadata for HTTP Live Streaming (in ID3 format, carried in MPEG2-TS, as defined in https://developer.apple.com/library/ios/documentation/AudioVideo/Conceptual/HTTP_Live_Streaming_Metadata_Spec/HTTP_Live_Streaming_Metadata_Spec.pdf)
+  - AES-128 decryption
   - Buffer progress report
   - Error resilience
     - Retry mechanism on I/O errors 
@@ -50,7 +51,11 @@ The plugin accepts several **optional** configuration options, such as:
     - If set to `-1` some heuristics based on past metrics are used to define an accurate value that should prevent buffer to stall
   - `hls_lowbufferlength` (default 3) - Low buffer threshold in _seconds_. When crossing down this threshold, HLS will switch to buffering state, usually the player will report this buffering state through a rotating icon. Playback will still continue.
   - `hls_maxbufferlength` (default 60) - Maximum buffer length in _seconds_ (0 means infinite buffering)
-  - `hls_startfromlevel` (default -1) 
+  - `hls_startfrombitrate` (default -1)
+   - If greater than 0, specifies the preferred bitrate to start with.
+   - If -1, and hls_startfromlevel is not specified, automatic start level selection will be used.
+   - This parameter, if set, will take priority over hls_startfromlevel.
+  - `hls_startfromlevel` (default -1)
    - from 0 to 1 : indicates the "normalized" preferred bitrate. As such,
      - if 0, lowest non-audio bitrate is used,
      - if 1, highest bitrate is used,
@@ -72,10 +77,14 @@ The plugin accepts several **optional** configuration options, such as:
     - After initial load, any I/O error will trigger retries every 1s,2s,4s,8s (exponential, capped to 64s).  please note specific handling for these 2 values :
         - 0, means no retry, error message will be triggered automatically
         - -1 means infinite retry
+  - `hls_keyloadmaxretry` (default -1): max number of key load retries after I/O Error.
+      * any I/O error will trigger retries every 1s,2s,4s,8s (exponential, capped to 64s).  please note specific handling for these 2 values :
+          * 0, means no retry, error message will be triggered automatically
+          * -1 means infinite retry
   - `hls_fragmentloadmaxretry` (default -1): max number of Fragment load retries after I/O Error.
       * any I/O error will trigger retries every 1s,2s,4s,8s (exponential, capped to 64s).  please note specific handling for these 2 values :
           * 0, means no retry, error message will be triggered automatically
-          * -1 means infinite retry      
+          * -1 means infinite retry
   - `hls_capleveltostage` (default false) : limit levels usable in auto-quality by the stage dimensions (width and height)
     - true : level width and height (defined in m3u8 playlist) will be compared with the player width and height (stage.stageWidth and stage.stageHeight). Max level will be set depending on the `hls_maxlevelcappingmode` option. Note: this setting is ignored in manual mode so all the levels could be selected manually.
     - false : levels will not be limited. All available levels could be used in auto-quality mode taking only bandwidth into consideration.
@@ -164,6 +173,15 @@ swfobject.embedSWF('StrobeMediaPlayback.swf', 'player', 640, 360, '10.2', null, 
   name: 'player'
 });
 ```
+
+### Building
+---
+
+Run `FLEXPATH=/path/to/flex/sdk sh ./build.sh` inside the `build` directory
+
+`FLEXPATH` should point to your Flex SDK location (i.e. /opt/local/flex/4.6)
+
+After a successful build you will find fresh binaries in the `bin/debug` and `bin/release` directories
 
 ## License
 
