@@ -102,9 +102,6 @@ package org.mangui.chromeless {
         }
 
         protected function resourceLoadingSuccess() : void {
-            CONFIG::LOGGING {
-            Log.info("resourceLoaded and decoded");
-            }
 	     _timer.stop();
 	     _resource.position = 0;
 	     this.dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, false, false, _resource.bytesAvailable, _resource.bytesAvailable));
