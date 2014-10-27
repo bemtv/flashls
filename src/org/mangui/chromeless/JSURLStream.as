@@ -97,13 +97,18 @@ package org.mangui.chromeless {
             CONFIG::LOGGING {
             Log.info("resourceLoadingError");
             }
+            _timer.stop();
             this.dispatchEvent(new IOErrorEvent(IOErrorEvent.IO_ERROR));
         }
 
         protected function resourceLoadingSuccess() : void {
             CONFIG::LOGGING {
-            Log.info("resourceLoadingSuccess");
+            Log.info("resourceLoaded and decoded");
             }
+	     _timer.stop();
+	     _resource.position = 0;
+	     this.dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, false, false, _resource.bytesAvailable, _resource.bytesAvailable));
+	     this.dispatchEvent(new Event(Event.COMPLETE));
         }
 
         /** decrypt a small chunk of packets each time to avoid blocking **/
@@ -121,17 +126,10 @@ package org.mangui.chromeless {
             try {
                 _resource.writeBytes(Base64.decode(tmpString));
             } catch (error:Error) {
-                _timer.stop();
-		_resource = new ByteArray();
-                this.dispatchEvent(new Event(Event.COMPLETE));
                 resourceLoadingError();
             }
             if (decode_completed) {
-                _timer.stop();
                 resourceLoadingSuccess();
-                _resource.position = 0;
-                this.dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, false, false, _resource.bytesAvailable, _resource.bytesAvailable));
-                this.dispatchEvent(new Event(Event.COMPLETE));
             } else {
                 _read_position = end_pos;
             }

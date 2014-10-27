@@ -8,6 +8,7 @@ package org.mangui.hls.demux {
     import flash.events.Event;
     import flash.events.EventDispatcher;
     import flash.utils.ByteArray;
+    import flash.net.ObjectEncoding;
 
     CONFIG::LOGGING {
         import org.mangui.hls.utils.Log;
@@ -39,6 +40,8 @@ package org.mangui.hls.demux {
         /** audio PID **/
         private var _audioId : int;
         private var _audioIsAAC : Boolean;
+        /** ID3 PID **/
+        private var _id3Id : int;
         /** Vector of audio/video tags **/
         private var _tags : Vector.<FLVTag>;
         /** Display Object used to schedule parsing **/
@@ -54,8 +57,12 @@ package org.mangui.hls.demux {
         private var _curAudioPES : ByteArray;
         /* current video PES */
         private var _curVideoPES : ByteArray;
+        /* current id3 PES */
+        private var _curId3PES : ByteArray;
         /* ADTS frame overflow */
         private var _adtsFrameOverflow : ByteArray;
+        /* current NAL unit */
+        private var _curNalUnit : ByteArray;
         /* current AVC Tag */
         private var _curVideoTag : FLVTag;
         /* ADIF tag inserted ? */
@@ -88,7 +95,9 @@ package org.mangui.hls.demux {
         public function TSDemuxer(displayObject : DisplayObject, callback_audioselect : Function, callback_progress : Function, callback_complete : Function, callback_videometadata : Function) {
             _curAudioPES = null;
             _curVideoPES = null;
+            _curId3PES = null;
             _curVideoTag = null;
+            _curNalUnit = null;
             _adtsFrameOverflow = null;
             _callback_audioselect = callback_audioselect;
             _callback_progress = callback_progress;
@@ -96,7 +105,7 @@ package org.mangui.hls.demux {
             _callback_videometadata = callback_videometadata;
             _pmtParsed = false;
             _packetsBeforePMT = false;
-            _pmtId = _avcId = _audioId = -1;
+            _pmtId = _avcId = _audioId = _id3Id = -1;
             _audioIsAAC = false;
             _tags = new Vector.<FLVTag>();
             _displayObject = displayObject;
@@ -123,7 +132,9 @@ package org.mangui.hls.demux {
             _data = null;
             _curAudioPES = null;
             _curVideoPES = null;
+            _curId3PES = null;
             _curVideoTag = null;
+            _curNalUnit = null;
             _adtsFrameOverflow = null;
             _avcc = null;
             _tags = new Vector.<FLVTag>();
@@ -204,14 +215,35 @@ package org.mangui.hls.demux {
                     _curVideoPES = null;
                     // push last video tag if any
                     if (_curVideoTag) {
+                        if (_curNalUnit && _curNalUnit.length) {
+                            _curVideoTag.push(_curNalUnit, 0, _curNalUnit.length);
+                        }
                         _tags.push(_curVideoTag);
                         _curVideoTag = null;
+                        _curNalUnit = null;
                     }
                 } else {
                     CONFIG::LOGGING {
                         Log.debug("TS: partial AVC PES at end of segment");
                     }
                     _curVideoPES.position = _curVideoPES.length;
+                }
+            }
+            // check whether last parsed ID3 PES is complete
+            if (_curId3PES && _curId3PES.length > 14) {
+                var pes3 : PES = new PES(_curId3PES, false);
+                if (pes3.len && (pes3.data.length - pes3.payload - pes3.payload_len) >= 0) {
+                    CONFIG::LOGGING {
+                        Log.debug2("TS: complete ID3 PES found at end of segment, parse it");
+                    }
+                    // complete PES, parse and push into the queue
+                    _parseID3PES(pes3);
+                    _curId3PES = null;
+                } else {
+                    CONFIG::LOGGING {
+                        Log.debug("TS: partial ID3 PES at end of segment");
+                    }
+                    _curId3PES.position = _curId3PES.length;
                 }
             }
             // push remaining tags and notify complete
@@ -306,8 +338,8 @@ package org.mangui.hls.demux {
             var frames : Vector.<VideoFrame> = Nalu.getNALU(pes.data, pes.payload);
             // If there's no NAL unit, push all data in the previous tag, if any exists
             if (!frames.length) {
-                if (_curVideoTag) {
-                    _curVideoTag.push(pes.data, pes.payload, pes.data.length - pes.payload);
+                if (_curNalUnit) {
+                    _curNalUnit.writeBytes(pes.data, pes.payload, pes.data.length - pes.payload);
                 } else {
                     null; // just to avoid compilaton warnings if CONFIG::LOGGING is false
                     CONFIG::LOGGING {
@@ -316,10 +348,10 @@ package org.mangui.hls.demux {
                 }
                 return;
             }
-            // If NAL units are not starting right at the beginning of the PES packet, push preceding data into the previous tag.
+            // If NAL units are not starting right at the beginning of the PES packet, push preceding data into previous NAL unit.
             var overflow : int = frames[0].start - frames[0].header - pes.payload;
-            if (overflow && _curVideoTag) {
-                _curVideoTag.push(pes.data, pes.payload, overflow);
+            if (overflow && _curNalUnit) {
+                _curNalUnit.writeBytes(pes.data, pes.payload, overflow);
             }
             if (isNaN(pes.pts)) {
                 CONFIG::LOGGING {
@@ -327,17 +359,74 @@ package org.mangui.hls.demux {
                 }
                 return;
             }
-            /* if we are here, it means that we have new NALu frames available
-             * we can push current video tags and create a new one
+
+            /* first loop : look for AUD/SPS/PPS NAL unit :
+             * AUD (Access Unit Delimiter) are used to detect switch to new video tag 
+             * SPS/PPS are used to generate AVC HEADER
              */
-            if (_curVideoTag) {
-                _tags.push(_curVideoTag);
-            }
-            _curVideoTag = new FLVTag(FLVTag.AVC_NALU, pes.pts, pes.dts, false);
-            // Only push NAL units 1 to 5 into tag.
+
             for each (var frame : VideoFrame in frames) {
-                if (frame.type < 6) {
+                if (frame.type == 9) {
+                    if (_curVideoTag) {
+                        /* AUD (Access Unit Delimiter) NAL unit:
+                         * we need to push current video tag and start a new one
+                         */
+                        if (_curNalUnit && _curNalUnit.length) {
+                            /* push current data into video tag, if any */
+                            _curVideoTag.push(_curNalUnit, 0, _curNalUnit.length);
+                        }
+                        _tags.push(_curVideoTag);
+                    }
+                    _curNalUnit = new ByteArray();
+                    _curVideoTag = new FLVTag(FLVTag.AVC_NALU, pes.pts, pes.dts, false);
+                    // push NAL unit 9 into TAG
                     _curVideoTag.push(pes.data, frame.start, frame.length);
+                } else if (frame.type == 7) {
+                    sps_found = true;
+                    sps = new ByteArray();
+                    pes.data.position = frame.start;
+                    pes.data.readBytes(sps, 0, frame.length);
+                    // try to retrieve video width and height from SPS
+                    var spsInfo : SPSInfo = new SPSInfo(sps);
+                    sps.position = 0;
+                    if (spsInfo.width && spsInfo.height) {
+                        // notify upper layer
+                        _callback_videometadata(spsInfo.width, spsInfo.height);
+                    }
+                } else if (frame.type == 8) {
+                    if (!pps_found) {
+                        pps_found = true;
+                        ppsvect = new Vector.<ByteArray>();
+                    }
+                    var pps : ByteArray = new ByteArray();
+                    pes.data.position = frame.start;
+                    pes.data.readBytes(pps, 0, frame.length);
+                    ppsvect.push(pps);
+                }
+            }
+            // if both SPS and PPS have been found, build AVCC and push tag if needed
+            if (sps_found && pps_found) {
+                var avcc : ByteArray = AVCC.getAVCC(sps, ppsvect);
+                // only push AVCC tag if never pushed or avcc different from previous one
+                if (_avcc == null || !compareByteArray(_avcc, avcc)) {
+                    _avcc = avcc;
+                    var avccTag : FLVTag = new FLVTag(FLVTag.AVC_HEADER, pes.pts, pes.dts, true);
+                    avccTag.push(avcc, 0, avcc.length);
+                    // Log.debug("TS:AVC:push AVC HEADER");
+                    _tags.push(avccTag);
+                }
+            }
+
+            /* 
+             * second loop, handle other NAL units and push them in tags accordingly
+             */
+            for each (frame in frames) {
+                if (frame.type <= 6) {
+                    if (_curNalUnit && _curNalUnit.length) {
+                        _curVideoTag.push(_curNalUnit, 0, _curNalUnit.length);
+                    }
+                    _curNalUnit = new ByteArray();
+                    _curNalUnit.writeBytes(pes.data, frame.start, frame.length);
                     // Unit type 5 indicates a keyframe.
                     if (frame.type == 5) {
                         _curVideoTag.keyframe = true;
@@ -368,37 +457,6 @@ package org.mangui.hls.demux {
                             _curVideoTag.keyframe = false;
                         }
                     }
-                } else if (frame.type == 7) {
-                    sps_found = true;
-                    sps = new ByteArray();
-                    pes.data.position = frame.start;
-                    pes.data.readBytes(sps, 0, frame.length);
-                    // try to retrieve video width and height from SPS
-                    var spsInfo : SPSInfo = new SPSInfo(sps);
-                    sps.position = 0;
-                    if (spsInfo.width && spsInfo.height) {
-                        // notify upper layer
-                        _callback_videometadata(spsInfo.width, spsInfo.height);
-                    }
-                } else if (frame.type == 8) {
-                    if (!pps_found) {
-                        pps_found = true;
-                        ppsvect = new Vector.<ByteArray>();
-                    }
-                    var pps : ByteArray = new ByteArray();
-                    pes.data.position = frame.start;
-                    pes.data.readBytes(pps, 0, frame.length);
-                    ppsvect.push(pps);
-                }
-            }
-            if (sps_found && pps_found) {
-                var avcc : ByteArray = AVCC.getAVCC(sps, ppsvect);
-                // only push AVCC tag if never pushed or avcc different from previous one
-                if (_avcc == null || !compareByteArray(_avcc, avcc)) {
-                    _avcc = avcc;
-                    var avccTag : FLVTag = new FLVTag(FLVTag.AVC_HEADER, pes.pts, pes.dts, true);
-                    avccTag.push(avcc, 0, avcc.length);
-                    _tags.push(avccTag);
                 }
             }
         }
@@ -421,6 +479,42 @@ package org.mangui.hls.demux {
                 return true;
             }
             return false;
+        }
+
+        /** parse ID3 PES packet **/
+        private function _parseID3PES(pes : PES) : void {
+            // note: apple spec does not include having PTS in ID3!!!!
+            // so we should really spoof the PTS by knowing the PCR at this point
+            if (isNaN(pes.pts)) {
+                CONFIG::LOGGING {
+                    Log.warn("TS: no PTS info in this ID3 PES packet,discarding it");
+                }
+                return;
+            }
+
+            var pespayload : ByteArray = new ByteArray();
+            if (pes.data.length >= pes.payload + pes.payload_len) {
+                pes.data.position = pes.payload;
+                pespayload.writeBytes(pes.data, pes.payload, pes.payload_len);
+                pespayload.position = 0;
+            }
+            pes.data.position = 0;
+
+            var tag : FLVTag = new FLVTag(FLVTag.METADATA, pes.pts, pes.pts, false);
+            var data : ByteArray = new ByteArray();
+            data.objectEncoding = ObjectEncoding.AMF0;
+
+            // one or more SCRIPTDATASTRING + SCRIPTDATAVALUE
+            data.writeObject("onID3Data");
+            // SCRIPTDATASTRING - name of object
+            // to pass ByteArray, change to AMF3
+            data.objectEncoding = ObjectEncoding.AMF3;
+            data.writeByte(0x11);
+            // AMF3 escape
+            // then write the ByteArray
+            data.writeObject(pespayload);
+            tag.push(data, 0, data.length);
+            _tags.push(tag);
         }
 
         /** Parse TS packet. **/
@@ -526,6 +620,41 @@ package org.mangui.hls.demux {
                         }
                     }
                     break;
+                case _id3Id:
+                    if (_pmtParsed == false) {
+                        break;
+                    }
+                    if (stt) {
+                        if (_curId3PES) {
+                            _parseID3PES(new PES(_curId3PES, false));
+                        }
+                        _curId3PES = new ByteArray();
+                    }
+                    if (_curId3PES) {
+                        // store data.  will normally be in a single TS
+                        _curId3PES.writeBytes(_data, _data.position, todo);
+                        var pes : PES = new PES(_curId3PES, false);
+                        if (pes.len && (pes.data.length - pes.payload - pes.payload_len) >= 0) {
+                            CONFIG::LOGGING {
+                                Log.debug2("TS: complete ID3 PES found, parse it");
+                            }
+                            // complete PES, parse and push into the queue
+                            _parseID3PES(pes);
+                            _curId3PES = null;
+                        } else {
+                            CONFIG::LOGGING {
+                                Log.debug("TS: partial ID3 PES");
+                            }
+                            _curId3PES.position = _curId3PES.length;
+                        }
+                    } else {
+                        null;
+                        // just to avoid compilation warnings if CONFIG::LOGGING is false
+                        CONFIG::LOGGING {
+                            Log.warn("TS: Discarding ID3 packet with id " + pid + " bad TS segmentation ?");
+                        }
+                    }
+                    break;
                 case _avcId:
                     if (_pmtParsed == false) {
                         break;
@@ -618,6 +747,9 @@ package org.mangui.hls.demux {
                     // ISO/IEC 11172-3 (MPEG-1 audio)
                     // or ISO/IEC 13818-3 (MPEG-2 halved sample rate audio)
                     audioList.push(new AudioTrack('TS/MP3 ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
+                } else if (typ == 0x15) {
+                    // ID3 pid
+                    _id3Id = sid;
                 }
                 // es_info_length
                 var sel : uint = _data.readUnsignedShort() & 0xFFF;
