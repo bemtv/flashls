@@ -24,7 +24,7 @@ package org.mangui.chromeless {
         /** read position **/
         private var _read_position : uint;
         /** read position **/
-        private var _base64_resource : String;
+        private var _base64_resource : String = "";
         /** chunk size to avoid blocking **/
         private static const CHUNK_SIZE : uint = 65536;
         private static var _instance_count : int = 0;
@@ -85,25 +85,35 @@ package org.mangui.chromeless {
         }
 
         protected function resourceLoaded(base64Resource : String) : void {
+	     if (_base64_resource.length == 0) {
+		  _base64_resource = base64Resource;
+	     } else {
+		  _base64_resource += base64Resource;
+	     }
+        }
+
+	 protected function startDecoding() : void {
             _resource = new ByteArray();
             _read_position = 0;
             _timer = new Timer(0, 0);
             _timer.addEventListener(TimerEvent.TIMER, _decodeData);
             _timer.start();
-            _base64_resource = base64Resource;
-        }
+	 }
 
         protected function resourceLoadingError() : void {
             CONFIG::LOGGING {
             Log.info("resourceLoadingError");
             }
             _timer.stop();
+	     _resource.position = 0;
+	     _base64_resource = "";
             this.dispatchEvent(new IOErrorEvent(IOErrorEvent.IO_ERROR));
         }
 
         protected function resourceLoadingSuccess() : void {
 	     _timer.stop();
 	     _resource.position = 0;
+	     _base64_resource = "";
 	     this.dispatchEvent(new ProgressEvent(ProgressEvent.PROGRESS, false, false, _resource.bytesAvailable, _resource.bytesAvailable));
 	     this.dispatchEvent(new Event(Event.COMPLETE));
         }

@@ -14,6 +14,7 @@ package tv.bem {
             idHolder = PlaybackIdHolder.getInstance();
             playbackId = idHolder.playbackId;
             ExternalInterface.addCallback("resourceLoaded", resourceLoaded);
+            ExternalInterface.addCallback("startDecoding", startDecoding);
         }
 
         override public function load(request:URLRequest):void {
