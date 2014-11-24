@@ -16,7 +16,7 @@ package tv.bem {
 
         public function BemTVPlayer() {
             super();
-            ExternalInterface.call("console.log", "BemTV Player (0.0.10)");
+            ExternalInterface.call("console.log", "BemTV Player (0.0.11)");
             idHolder = PlaybackIdHolder.getInstance();
             idHolder.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
         }

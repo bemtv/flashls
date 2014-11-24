@@ -338,7 +338,9 @@
                     }
                 } else if (level_found == true) {
                     level.url = _extractURL(line, base);
-                    levels.push(level);
+		      if (level.url.indexOf("-audio") < 0) {
+			   levels.push(level);
+		      }
                     level_found = false;
                 }
             }

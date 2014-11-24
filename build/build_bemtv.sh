@@ -14,7 +14,7 @@ OPT_RELEASE="-use-network=false \
     -compress=true \
     -strict=true \
     -use-gpu=true \
-    -define=CONFIG::LOGGING,true \
+    -define=CONFIG::LOGGING,false \
     -define=CONFIG::FLASH_11_1,true"
 
 
