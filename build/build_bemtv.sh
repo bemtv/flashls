@@ -6,14 +6,17 @@ OPT_DEBUG="-use-network=false \
     -compress=true \
     -strict=true \
     -use-gpu=true \
-    -define=CONFIG::LOGGING,true"
+    -define=CONFIG::LOGGING,true \
+    -define=CONFIG::FLASH_11_1,true"
 
 OPT_RELEASE="-use-network=false \
     -optimize=true \
     -compress=true \
     -strict=true \
     -use-gpu=true \
-    -define=CONFIG::LOGGING,false"
+    -define=CONFIG::LOGGING,true \
+    -define=CONFIG::FLASH_11_1,true"
+
 
 echo "Compiling bin/debug/P2PHLSPlayer.swf"
 $FLEXPATH/bin/mxmlc ../src/tv/bem/BemTVPlayer.as \
