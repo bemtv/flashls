@@ -1,4 +1,7 @@
-package org.mangui.hls.model {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.model {
     CONFIG::LOGGING {
         import org.mangui.hls.utils.Log;
     }
@@ -8,6 +11,12 @@ package org.mangui.hls.model {
     public class Level {
         /** audio only Level ? **/
         public var audio : Boolean;
+        /** AAC codec signaled ? **/
+        public var codec_aac : Boolean;
+        /** MP3 codec signaled ? **/
+        public var codec_mp3 : Boolean;
+        /** H264 codec signaled ? **/
+        public var codec_h264 : Boolean;
         /** Level Bitrate. **/
         public var bitrate : Number;
         /** Level Name. **/

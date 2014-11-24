@@ -1,4 +1,10 @@
-package org.mangui.hls.playlist {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.playlist {
+    import org.mangui.hls.HLS;
+    import org.mangui.hls.event.HLSEvent;
+    import org.mangui.hls.event.HLSError;
     import org.mangui.hls.utils.Hex;
 
     import flash.events.*;
@@ -6,13 +12,12 @@ package org.mangui.hls.playlist {
     import flash.utils.ByteArray;
 
     import org.mangui.hls.constant.HLSTypes;
-	import org.mangui.hls.model.Level;
+    import org.mangui.hls.model.Level;
     import org.mangui.hls.model.Fragment;
 
     CONFIG::LOGGING {
-    import org.mangui.hls.utils.Log;
+        import org.mangui.hls.utils.Log;
     }
-
     /** Helpers for parsing M3U8 files. **/
     public class Manifest {
         /** Starttag for a fragment. **/
@@ -68,8 +73,8 @@ package org.mangui.hls.playlist {
 
             if (flushLiveURLcache && type == HLSTypes.LIVE) {
                 /*
-                 add time parameter to force reload URL, there are some issues with browsers/CDN reloading from cache even if the URL has been updated ...
-                 see http://stackoverflow.com/questions/14448219/as3-resetting-urlloader-cache
+                add time parameter to force reload URL, there are some issues with browsers/CDN reloading from cache even if the URL has been updated ...
+                see http://stackoverflow.com/questions/14448219/as3-resetting-urlloader-cache
                  */
                 var extra : String = "time=" + new Date().getTime();
                 if (_url.indexOf("?") == -1) {
@@ -80,7 +85,7 @@ package org.mangui.hls.playlist {
             }
             if (DataUri.isDataUri(url)) {
                 CONFIG::LOGGING {
-                Log.debug("Identified playlist <" + url + "> as a data URI.");
+                    Log.debug("Identified playlist <" + url + "> as a data URI.");
                 }
                 var data : String = new DataUri(url).extractData();
                 onLoadedData(data || "");
@@ -252,8 +257,8 @@ package org.mangui.hls.playlist {
                     var fragment_decrypt_iv : ByteArray;
                     if (decrypt_url != null) {
                         /* as per HLS spec :
-                         if IV not defined, then use seqnum as IV :
-                         http://tools.ietf.org/html/draft-pantos-http-live-streaming-11#section-5.2
+                        if IV not defined, then use seqnum as IV :
+                        http://tools.ietf.org/html/draft-pantos-http-live-streaming-11#section-5.2
                          */
                         if (decrypt_iv != null) {
                             fragment_decrypt_iv = decrypt_iv;
@@ -262,7 +267,7 @@ package org.mangui.hls.playlist {
                         }
 
                         CONFIG::LOGGING {
-                        Log.debug("sn/key/iv:" + seqnum + "/" + decrypt_url + "/" + Hex.fromArray(fragment_decrypt_iv));
+                            Log.debug("sn/key/iv:" + seqnum + "/" + decrypt_url + "/" + Hex.fromArray(fragment_decrypt_iv));
                         }
                     } else {
                         fragment_decrypt_iv = null;
@@ -279,23 +284,31 @@ package org.mangui.hls.playlist {
             }
             if (fragments.length == 0) {
                 // throw new Error("No TS fragments found in " + base);
-                null; // just to avoid compilaton warnings if CONFIG::LOGGING is false
+                null;
+                // just to avoid compilation warnings if CONFIG::LOGGING is false
                 CONFIG::LOGGING {
-                Log.warn("No TS fragments found in " + base);
+                    Log.warn("No TS fragments found in " + base);
                 }
             }
             return fragments;
         };
 
         /** Extract levels from manifest data. **/
-        public static function extractLevels(data : String, base : String = '') : Vector.<Level> {
+        public static function extractLevels(hls : HLS, data : String, base : String = '') : Vector.<Level> {
             var levels : Array = [];
+            var level : Level;
             var lines : Array = data.split("\n");
+            var level_found : Boolean = false;
             var i : int = 0;
             while (i < lines.length) {
                 var line : String = lines[i++];
+                // discard blank line, length could be 0 or 1 if DOS terminated line (CR/LF)
+                if (line.length <= 1) {
+                    continue;
+                }
                 if (line.indexOf(LEVEL) == 0) {
-                    var level : Level = new Level();
+                    level_found = true;
+                    level = new Level();
                     var params : Array = line.substr(LEVEL.length).split(',');
                     for (var j : int = 0; j < params.length; j++) {
                         var param : String = params[j];
@@ -306,30 +319,33 @@ package org.mangui.hls.playlist {
                             var dim : Array = res.split('x');
                             level.width = parseInt(dim[0]);
                             level.height = parseInt(dim[1]);
-                        } else if (param.indexOf('CODECS') > -1 && line.indexOf('avc1') == -1) {
-                            level.audio = true;
+                        } else if (param.indexOf('CODECS') > -1) {
+                            if (line.indexOf('avc1') > -1) {
+                                level.codec_h264 = true;
+                            } else {
+                                level.audio = true;
+                            }
+                            if (line.indexOf('mp4a.40.2') > -1 || line.indexOf('mp4a.40.5') > -1) {
+                                level.codec_aac = true;
+                            } else if (line.indexOf('mp4a.40.34') > -1) {
+                                level.codec_mp3 = true;
+                            }
                         } else if (param.indexOf('AUDIO') > -1) {
                             level.audio_stream_id = (param.split('=')[1] as String).replace(replacedoublequote, "");
                         } else if (param.indexOf('NAME') > -1) {
                             level.name = (param.split('=')[1] as String).replace(replacedoublequote, "");
                         }
                     }
-                    /* discard blank line, which length could be 0 or 1 if DOS terminated line (CR/LF)
-                     * next non-blank line will be URL
-                     */
-                    do {
-                        line = lines[i++];
-                    } while (line.length <= 1);
-
-                    level.url = Manifest._extractURL(line, base);
-					if (level.url.indexOf("-audio") < 0) {
-						levels.push(level);
-					}
+                } else if (level_found == true) {
+                    level.url = _extractURL(line, base);
+                    levels.push(level);
+                    level_found = false;
                 }
             }
-            var levelsLength:int = levels.length;
+            var levelsLength : int = levels.length;
             if (levelsLength == 0) {
-                throw new Error("No playlists found in Manifest: " + base);
+                var hlsError : HLSError = new HLSError(HLSError.MANIFEST_PARSING_ERROR, base, "No level found in Manifest");
+                hls.dispatchEvent(new HLSEvent(HLSEvent.ERROR, hlsError));
             }
             levels.sortOn('bitrate', Array.NUMERIC);
             var vectorLevels : Vector.<Level> = new Vector.<Level>();
@@ -351,7 +367,7 @@ package org.mangui.hls.playlist {
                 if (line.indexOf(ALTERNATE_AUDIO) == 0) {
                     line = line.replace(replacedoublequote, "");
                     CONFIG::LOGGING {
-                    Log.debug("parsing alternate audio level info:\n" + line);
+                        Log.debug("parsing alternate audio level info:\n" + line);
                     }
                     // #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="bipbop_audio",LANGUAGE="eng",NAME="BipBop Audio 1",AUTOSELECT=YES,DEFAULT=YES
                     // #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="bipbop_audio",LANGUAGE="eng",NAME="BipBop Audio 2",AUTOSELECT=NO,DEFAULT=NO,URI="alternate_audio_aac_sinewave/prog_index.m3u8"
@@ -422,8 +438,8 @@ package org.mangui.hls.playlist {
         private static function _extractURL(path : String, base : String) : String {
             var _prefix : String = null;
             var _suffix : String = null;
-            //trim white space if any
-            path.replace(replacespace,"");
+            // trim white space if any
+            path.replace(replacespace, "");
             if (path.substr(0, 7) == 'http://' || path.substr(0, 8) == 'https://') {
                 return path;
             } else {

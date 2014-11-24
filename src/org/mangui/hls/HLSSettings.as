@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package org.mangui.hls {
     import org.mangui.hls.constant.HLSSeekMode;
     import org.mangui.hls.constant.HLSMaxLevelCappingMode;
@@ -127,6 +130,13 @@ package org.mangui.hls {
          * -1 : automatic start level selection, keep previous level matching previous download bandwidth
          */
         public static var seekFromLevel : Number = -1;
+
+        /** use hardware video decoder :
+         *  it will set NetStream.useHardwareDecoder
+         *  refer to http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#useHardwareDecoder
+         */
+        public static var useHardwareVideoDecoder : Boolean = true;
+
         /**
          * Defines whether INFO level log messages will will appear in the console
          * Default is true.

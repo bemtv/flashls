@@ -1,4 +1,7 @@
-package org.mangui.hls.stream {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.controller {
     import org.mangui.hls.constant.HLSMaxLevelCappingMode;
     import org.mangui.hls.HLSSettings;
     import org.mangui.hls.HLS;
@@ -13,7 +16,7 @@ package org.mangui.hls.stream {
      * this is an implementation based on Serial segment fetching method from 
      * http://www.cs.tut.fi/~moncef/publications/rate-adaptation-IC-2011.pdf
      */
-    public class AutoLevelManager {
+    public class AutoLevelController {
         /** Reference to the HLS controller. **/
         private var _hls : HLS;
         /** switch up threshold **/
@@ -31,7 +34,7 @@ package org.mangui.hls.stream {
         private var  last_bandwidth : Number;
 
         /** Create the loader. **/
-        public function AutoLevelManager(hls : HLS) : void {
+        public function AutoLevelController(hls : HLS) : void {
             _hls = hls;
             _hls.addEventListener(HLSEvent.MANIFEST_LOADED, _manifestLoadedHandler);
             _hls.addEventListener(HLSEvent.FRAGMENT_LOADED, _fragmentLoadedHandler);

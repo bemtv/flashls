@@ -1,14 +1,17 @@
-package org.mangui.hls.stream {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.loader {
+    import org.mangui.hls.controller.AudioTrackController;
+    import org.mangui.hls.controller.AutoLevelController;
     import org.mangui.hls.HLSSettings;
     import org.mangui.hls.event.HLSLoadMetrics;
     import org.mangui.hls.constant.HLSTypes;
-    import org.mangui.hls.demux.TSDemuxer;
-    import org.mangui.hls.demux.MP3Demuxer;
-    import org.mangui.hls.demux.AACDemuxer;
     import org.mangui.hls.flv.FLVTag;
     import org.mangui.hls.event.HLSError;
     import org.mangui.hls.event.HLSEvent;
     import org.mangui.hls.demux.Demuxer;
+    import org.mangui.hls.demux.DemuxHelper;
     import org.mangui.hls.model.AudioTrack;
     import org.mangui.hls.HLS;
     import org.mangui.hls.model.Fragment;
@@ -32,7 +35,7 @@ package org.mangui.hls.stream {
         /** Reference to the HLS controller. **/
         private var _hls : HLS;
         /** reference to auto level manager */
-        private var _autoLevelManager : AutoLevelManager;
+        private var _autoLevelManager : AutoLevelController;
         /** reference to audio track controller */
         private var _audioTrackController : AudioTrackController;
         /** has manifest been loaded **/
@@ -96,7 +99,7 @@ package org.mangui.hls.stream {
         /** Create the loader. **/
         public function FragmentLoader(hls : HLS, audioTrackController : AudioTrackController) : void {
             _hls = hls;
-            _autoLevelManager = new AutoLevelManager(hls);
+            _autoLevelManager = new AutoLevelController(hls);
             _audioTrackController = audioTrackController;
             _hls.addEventListener(HLSEvent.MANIFEST_LOADED, _manifestLoadedHandler);
             _hls.addEventListener(HLSEvent.LEVEL_LOADED, _levelLoadedHandler);
@@ -225,7 +228,7 @@ package org.mangui.hls.stream {
                 // if fragment loading failed
                 case LOADING_FRAGMENT_IO_ERROR:
                     // compare current date and next retry date.
-                    if (new Date().valueOf() >= _key_load_error_date) {
+                    if (new Date().valueOf() >= _frag_load_error_date) {
                         /* try to reload the key ...
                         calling _loadfragment will also reload key */
                         _loadfragment(_frag_current);
@@ -436,42 +439,10 @@ package org.mangui.hls.stream {
                 bytes.position = bytes.length;
                 bytes.writeBytes(data);
                 data = bytes;
-                _demux = probe(data);
+                _demux = DemuxHelper.probe(data, _levels[level], _hls.stage, _fragParsingAudioSelectionHandler, _fragParsingProgressHandler, _fragParsingCompleteHandler, _fragParsingVideoMetadataHandler);
             }
             if (_demux) {
                 _demux.append(data);
-            }
-        }
-
-        private function probe(data : ByteArray) : Demuxer {
-            var fragData : FragmentData = _frag_current.data;
-            data.position = 0;
-            CONFIG::LOGGING {
-                Log.debug("probe fragment type");
-            }
-            if (AACDemuxer.probe(data) == true) {
-                CONFIG::LOGGING {
-                    Log.debug("AAC ES found");
-                }
-                fragData.video_expected = false;
-                return new AACDemuxer(_fragParsingAudioSelectionHandler, _fragParsingProgressHandler, _fragParsingCompleteHandler);
-            } else if (MP3Demuxer.probe(data) == true) {
-                CONFIG::LOGGING {
-                    Log.debug("MP3 ES found");
-                }
-                fragData.video_expected = false;
-                return new MP3Demuxer(_fragParsingAudioSelectionHandler, _fragParsingProgressHandler, _fragParsingCompleteHandler);
-            } else if (TSDemuxer.probe(data) == true) {
-                CONFIG::LOGGING {
-                    Log.debug("MPEG2-TS found");
-                }
-                fragData.video_expected = true;
-                return new TSDemuxer(_hls.stage, _fragParsingAudioSelectionHandler, _fragParsingProgressHandler, _fragParsingCompleteHandler, _fragParsingVideoMetadataHandler);
-            } else {
-                CONFIG::LOGGING {
-                    Log.debug("probe fails");
-                }
-                return null;
             }
         }
 
@@ -498,7 +469,7 @@ package org.mangui.hls.stream {
                 var bytes : ByteArray = new ByteArray();
                 fragData.bytes.position = _frag_current.byterange_start_offset;
                 fragData.bytes.readBytes(bytes, 0, _frag_current.byterange_end_offset - _frag_current.byterange_start_offset);
-                _demux = probe(bytes);
+                _demux = DemuxHelper.probe(bytes, _levels[level], _hls.stage, _fragParsingAudioSelectionHandler, _fragParsingProgressHandler, _fragParsingCompleteHandler, _fragParsingVideoMetadataHandler);
                 if (_demux) {
                     bytes.position = 0;
                     _demux.append(bytes);
@@ -712,6 +683,15 @@ package org.mangui.hls.stream {
         private function _loadfragment(frag : Fragment) : void {
             // postpone URLStream init before loading first fragment
             if (_fragstreamloader == null) {
+                if (_hls.stage == null) {
+                    var err : String = "hls.stage not set, cannot parse TS data !!!";
+                    CONFIG::LOGGING {
+                        Log.error(err);
+                    }
+                    var hlsError : HLSError = new HLSError(HLSError.OTHER_ERROR, _frag_current.url, err);
+                    _hls.dispatchEvent(new HLSEvent(HLSEvent.ERROR, hlsError));
+                    return;
+                }
                 var urlStreamClass : Class = _hls.URLstream as Class;
                 _fragstreamloader = (new urlStreamClass()) as URLStream;
                 _fragstreamloader.addEventListener(IOErrorEvent.IO_ERROR, _fragLoadErrorHandler);
@@ -748,7 +728,7 @@ package org.mangui.hls.stream {
                 _hls.dispatchEvent(new HLSEvent(HLSEvent.FRAGMENT_LOADING, frag.url));
                 _fragstreamloader.load(new URLRequest(frag.url));
             } catch (error : Error) {
-                var hlsError : HLSError = new HLSError(HLSError.FRAGMENT_LOADING_ERROR, frag.url, error.message);
+                hlsError = new HLSError(HLSError.FRAGMENT_LOADING_ERROR, frag.url, error.message);
                 _hls.dispatchEvent(new HLSEvent(HLSEvent.ERROR, hlsError));
             }
         }
@@ -768,16 +748,16 @@ package org.mangui.hls.stream {
         /** Store the manifest data. **/
         private function _levelLoadedHandler(event : HLSEvent) : void {
             _last_loaded_level = event.level;
-            if(_loading_state == LOADING_WAITING_LEVEL_UPDATE && _last_loaded_level == _level) {
+            if (_loading_state == LOADING_WAITING_LEVEL_UPDATE && _last_loaded_level == _level) {
                 _loading_state = LOADING_IDLE;
-               // speed up loading of new fragment
+                // speed up loading of new fragment
                 _timer.start();
             }
         };
 
         /** triggered by demux, it should return the audio track to be parsed */
         private function _fragParsingAudioSelectionHandler(audioTrackList : Vector.<AudioTrack>) : AudioTrack {
-            return _audioTrackController.audioTrackSelectionHandler(_frag_current, audioTrackList);
+            return _audioTrackController.audioTrackSelectionHandler(audioTrackList);
         }
 
         /** triggered by demux, it should return video width/height */
@@ -805,33 +785,30 @@ package org.mangui.hls.stream {
             for each (tag in tags) {
                 tag.pts = PTS.normalize(ref_pts, tag.pts);
                 tag.dts = PTS.normalize(ref_pts, tag.dts);
-                switch( tag.type )
-                {
-                case FLVTag.AAC_HEADER:
-                case FLVTag.AAC_RAW:
-                case FLVTag.MP3_RAW: 
-                    fragData.audio_found = true;
-                    fragData.tags_audio_found = true;
-                    fragData.tags_pts_min_audio = Math.min(fragData.tags_pts_min_audio, tag.pts);
-                    fragData.tags_pts_max_audio = Math.max(fragData.tags_pts_max_audio, tag.pts);
-                    fragData.pts_min_audio = Math.min(fragData.pts_min_audio, tag.pts);
-                    fragData.pts_max_audio = Math.max(fragData.pts_max_audio, tag.pts);
-                    break;
-					
-                case FLVTag.AVC_HEADER:
-                case FLVTag.AVC_NALU:
-                case FLVTag.DISCONTINUITY:
-                    fragData.video_found = true;
-                    fragData.tags_video_found = true;
-                    fragData.tags_pts_min_video = Math.min(fragData.tags_pts_min_video, tag.pts);
-                    fragData.tags_pts_max_video = Math.max(fragData.tags_pts_max_video, tag.pts);
-                    fragData.pts_min_video = Math.min(fragData.pts_min_video, tag.pts);
-                    fragData.pts_max_video = Math.max(fragData.pts_max_video, tag.pts);
-                    break;
-
-                case FLVTag.METADATA:
-                default:
-                    break;
+                switch( tag.type ) {
+                    case FLVTag.AAC_HEADER:
+                    case FLVTag.AAC_RAW:
+                    case FLVTag.MP3_RAW:
+                        fragData.audio_found = true;
+                        fragData.tags_audio_found = true;
+                        fragData.tags_pts_min_audio = Math.min(fragData.tags_pts_min_audio, tag.pts);
+                        fragData.tags_pts_max_audio = Math.max(fragData.tags_pts_max_audio, tag.pts);
+                        fragData.pts_min_audio = Math.min(fragData.pts_min_audio, tag.pts);
+                        fragData.pts_max_audio = Math.max(fragData.pts_max_audio, tag.pts);
+                        break;
+                    case FLVTag.AVC_HEADER:
+                    case FLVTag.AVC_NALU:
+                    case FLVTag.DISCONTINUITY:
+                        fragData.video_found = true;
+                        fragData.tags_video_found = true;
+                        fragData.tags_pts_min_video = Math.min(fragData.tags_pts_min_video, tag.pts);
+                        fragData.tags_pts_max_video = Math.max(fragData.tags_pts_max_video, tag.pts);
+                        fragData.pts_min_video = Math.min(fragData.pts_min_video, tag.pts);
+                        fragData.pts_max_video = Math.max(fragData.pts_max_video, tag.pts);
+                        break;
+                    case FLVTag.METADATA:
+                    default:
+                        break;
                 }
                 fragData.tags.push(tag);
             }
@@ -843,8 +820,8 @@ package org.mangui.hls.stream {
              *      we first need to download one fragment to check the dl bw, in order to assess start level ...)
              *      in case startFromLevel is to -1 and there is only one level, then we can do progressive buffering
              */
-            if (( _fragment_first_loaded || (_manifest_just_loaded && ((HLSSettings.startFromLevel !== -1 && HLSSettings.startFromBitrate !== -1) || _levels.length == 1) ) )) {
-                if (fragData.audio_expected && !fragData.audio_found) {
+            if (( _fragment_first_loaded || (_manifest_just_loaded && (HLSSettings.startFromLevel !== -1 || HLSSettings.startFromBitrate !== -1 || _levels.length == 1) ) )) {
+                if (_demux.audio_expected() && !fragData.audio_found) {
                     /* if no audio tags found, it means that only video tags have been retrieved here
                      * we cannot do progressive buffering in that case.
                      * we need to have some new audio tags to inject as well
@@ -929,7 +906,8 @@ package org.mangui.hls.stream {
                 _hls.dispatchEvent(new HLSEvent(HLSEvent.ERROR, hlsError));
             }
             if (fragData.audio_found) {
-                null; // just to stop the compiler warning
+                null;
+                // just to stop the compiler warning
                 CONFIG::LOGGING {
                     Log.debug("m/M audio PTS:" + fragData.pts_min_audio + "/" + fragData.pts_max_audio);
                 }

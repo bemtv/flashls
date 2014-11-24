@@ -1,4 +1,7 @@
-package org.mangui.hls.model {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.model {
     import org.mangui.hls.utils.AES;
     import org.mangui.hls.flv.FLVTag;
 
@@ -23,9 +26,6 @@ package org.mangui.hls.model {
         public var pts_max_audio : Number;
         public var pts_min_video : Number;
         public var pts_max_video : Number;
-        /** audio/video expected ? */
-        public var audio_expected : Boolean;
-        public var video_expected : Boolean;
         /** audio/video found ? */
         public var audio_found : Boolean;
         public var video_found : Boolean;

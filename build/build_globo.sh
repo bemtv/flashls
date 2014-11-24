@@ -7,12 +7,14 @@ OPT_DEBUG="
     -compress=true \
     -strict=true \
     -use-gpu=true \
-    -define=CONFIG::LOGGING,true"
+    -define=CONFIG::LOGGING,true \
+    -define=CONFIG::FLASH_11_1,true"
 
 OPT_RELEASE="
     -use-network=false \
     -optimize=true \
-    -define=CONFIG::LOGGING,false"
+    -define=CONFIG::LOGGING,false \
+    -define=CONFIG::FLASH_11_1,true"
 
 echo "Compiling bin/release/HLSPlayer.swf"
 $FLEXPATH/bin/mxmlc ../src/com/globo/Player.as \
@@ -20,7 +22,7 @@ $FLEXPATH/bin/mxmlc ../src/com/globo/Player.as \
     -o ../bin/release/HLSPlayer.swf \
     $OPT_RELEASE \
     -library-path+=../lib/blooddy_crypto.swc \
-    -target-player="11.1" \
+    -target-player="14.0" \
     -default-size 480 270 \
     -default-background-color=0x000000 \
     -default-frame-rate=60
@@ -32,7 +34,7 @@ $FLEXPATH/bin/mxmlc ../src/com/globo/Player.as \
     -o ../bin/debug/HLSPlayer.swf \
     $OPT_DEBUG \
     -library-path+=../lib/blooddy_crypto.swc \
-    -target-player="11.1" \
+    -target-player="14.0" \
     -default-size 480 270 \
     -default-background-color=0x000000 \
     -default-frame-rate=60

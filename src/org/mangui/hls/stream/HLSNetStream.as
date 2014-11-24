@@ -1,14 +1,19 @@
-package org.mangui.hls.stream {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.stream {
+    import org.mangui.hls.controller.AutoBufferController;
+    import org.mangui.hls.loader.FragmentLoader;
     import org.mangui.hls.event.HLSPlayMetrics;
-    import org.mangui.hls.constant.HLSSeekMode;
     import org.mangui.hls.event.HLSError;
+    import org.mangui.hls.event.HLSEvent;
     import org.mangui.hls.event.HLSMediatime;
-    import org.mangui.hls.HLSSettings;
     import org.mangui.hls.constant.HLSSeekStates;
     import org.mangui.hls.constant.HLSPlayStates;
+    import org.mangui.hls.constant.HLSSeekMode;
     import org.mangui.hls.flv.FLVTag;
     import org.mangui.hls.HLS;
-    import org.mangui.hls.event.HLSEvent;
+    import org.mangui.hls.HLSSettings;
     import org.mangui.hls.utils.Hex;
 
     import flash.events.Event;
@@ -25,7 +30,7 @@ package org.mangui.hls.stream {
         /** Reference to the framework controller. **/
         private var _hls : HLS;
         /** reference to auto buffer manager */
-        private var _autoBufferManager : AutoBufferManager;
+        private var _autoBufferController : AutoBufferController;
         /** FLV tags buffer vector **/
         private var _flvTagBuffer : Vector.<FLVTag>;
         /** FLV tags buffer duration **/
@@ -79,7 +84,7 @@ package org.mangui.hls.stream {
             super(connection);
             super.bufferTime = 0.1;
             _hls = hls;
-            _autoBufferManager = new AutoBufferManager(hls);
+            _autoBufferController = new AutoBufferController(hls);
             _fragmentLoader = fragmentLoader;
             _hls.addEventListener(HLSEvent.LAST_VOD_FRAGMENT_LOADED, _lastVODFragmentLoadedHandler);
             _hls.addEventListener(HLSEvent.PLAYLIST_DURATION_UPDATED, _playlistDurationUpdated);
@@ -109,20 +114,20 @@ package org.mangui.hls.stream {
         }
 
         // function is called by SCRIPT in FLV
-        public function onID3Data( data:ByteArray ) : void {
+        public function onID3Data(data : ByteArray) : void {
             var dump : String = "unset";
-			
+
             // we dump the content as hex to get it to the Javascript in the browser.
-            // from lots of searching, we could use base64, but even then, the decode would 
+            // from lots of searching, we could use base64, but even then, the decode would
             // not be native, so hex actually seems more efficient
             dump = Hex.fromArray(data);
-			
+
             CONFIG::LOGGING {
-                Log.debug("id3:"+dump);
+                Log.debug("id3:" + dump);
             }
             _hls.dispatchEvent(new HLSEvent(HLSEvent.ID3_UPDATED, dump));
         }
-		
+
         /** Check the bufferlength. **/
         private function _checkBuffer(e : Event) : void {
             var playback_absolute_position : Number;
@@ -165,7 +170,7 @@ package org.mangui.hls.stream {
                             // pause Netstream in really low buffer condition
                             super.pause();
                             if (HLSSettings.minBufferLength == -1) {
-                                _buffer_threshold = _autoBufferManager.minBufferLength;
+                                _buffer_threshold = _autoBufferController.minBufferLength;
                             } else {
                                 _buffer_threshold = HLSSettings.minBufferLength;
                             }
@@ -190,7 +195,7 @@ package org.mangui.hls.stream {
                      */
                     if (HLSSettings.minBufferLength == -1) {
                         // in automode, low buffer threshold should be less than min auto buffer
-                        _buffer_threshold = Math.min(_autoBufferManager.minBufferLength / 2, HLSSettings.lowBufferLength);
+                        _buffer_threshold = Math.min(_autoBufferController.minBufferLength / 2, HLSSettings.lowBufferLength);
                     } else {
                         _buffer_threshold = HLSSettings.lowBufferLength;
                     }
@@ -214,6 +219,12 @@ package org.mangui.hls.stream {
                     let's flush netstream now
                     this is to avoid black screen during seek command */
                     super.close();
+                    CONFIG::FLASH_11_1 {
+                        try {
+                            super.useHardwareDecoder = HLSSettings.useHardwareVideoDecoder;
+                        } catch(e : Error) {
+                        }
+                    }
                     super.play(null);
                     super.appendBytesAction(NetStreamAppendBytesAction.RESET_SEEK);
                     // immediatly pause NetStream, it will be resumed when enough data will be buffered in the NetStream
@@ -250,7 +261,7 @@ package org.mangui.hls.stream {
             }
             // update buffer threshold here if needed
             if (HLSSettings.minBufferLength == -1) {
-                _buffer_threshold = _autoBufferManager.minBufferLength;
+                _buffer_threshold = _autoBufferController.minBufferLength;
             }
         };
 
@@ -531,7 +542,7 @@ package org.mangui.hls.stream {
             _reached_vod_end = false;
             _cur_level = _cur_sn = -1;
             if (HLSSettings.minBufferLength == -1) {
-                _buffer_threshold = _autoBufferManager.minBufferLength;
+                _buffer_threshold = _autoBufferController.minBufferLength;
             } else {
                 _buffer_threshold = HLSSettings.minBufferLength;
             }
@@ -581,7 +592,7 @@ package org.mangui.hls.stream {
 
         public function dispose_() : void {
             close();
-            _autoBufferManager.dispose();
+            _autoBufferController.dispose();
             _hls.removeEventListener(HLSEvent.LAST_VOD_FRAGMENT_LOADED, _lastVODFragmentLoadedHandler);
             _hls.removeEventListener(HLSEvent.PLAYLIST_DURATION_UPDATED, _playlistDurationUpdated);
         }
