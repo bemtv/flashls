@@ -28,7 +28,7 @@ package com.globo {
             Security.allowDomain("*");
             Security.allowInsecureDomain("*");
             this.playbackId = LoaderInfo(this.root.loaderInfo).parameters.playbackId;
-            ExternalInterface.call("console.log", "HLS Initialized (0.1.9 - id: " + this.playbackId + ")");
+            ExternalInterface.call("console.log", "HLS Initialized (0.2.2 - id: " + this.playbackId + ")");
             setTimeout(flashReady, 50);
         }
 
@@ -61,6 +61,7 @@ package com.globo {
             ExternalInterface.addCallback("globoPlayerSetmaxBufferLength", _setmaxBufferLength);
             ExternalInterface.addCallback("globoPlayerSetminBufferLength", _setminBufferLength);
             ExternalInterface.addCallback("globoPlayerSetlowBufferLength", _setlowBufferLength);
+            ExternalInterface.addCallback("globoPlayerCapLeveltoStage", _setCapLeveltoStage);
         };
 
         private function _triggerEvent(eventName: String, param:String=null):void {

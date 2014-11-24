@@ -1,4 +1,7 @@
-package org.mangui.hls.demux {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.demux {
     import flash.utils.ByteArray;
     
     CONFIG::LOGGING {
@@ -77,9 +80,12 @@ package org.mangui.hls.demux {
                         // skip null character (string end) + 3 first bytes
                         data.position += 4;
                         // timestamp is 33 bit expressed as a big-endian eight-octet number, with the upper 31 bits set to zero.
-                        var pts_33_bit : Number = data.readUnsignedByte() & 0x1;
+                        var pts_33_bit : int = data.readUnsignedByte() & 0x1;
                         hasTimestamp = true;
-                        timestamp = (data.readUnsignedInt() / 90) << pts_33_bit;
+                        timestamp = (data.readUnsignedInt() / 90);
+                        if (pts_33_bit) {
+                            timestamp   += 47721858.84; // 2^32 / 90
+                        }
                         CONFIG::LOGGING {
                         Log.debug("ID3 timestamp found:" + timestamp);
                         }

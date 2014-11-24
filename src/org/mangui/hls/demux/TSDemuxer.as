@@ -1,4 +1,7 @@
-package org.mangui.hls.demux {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.demux {
     import flash.utils.getTimer;
     import flash.display.DisplayObject;
 
@@ -145,6 +148,14 @@ package org.mangui.hls.demux {
             _data_complete = true;
         }
 
+        public function audio_expected() : Boolean {
+            return (_audioId != -1);
+        }
+
+        public function video_expected() : Boolean {
+            return (_avcId != -1);
+        }
+
         /** Parse a limited amount of packets each time to avoid blocking **/
         private function _parseTimer(e : Event) : void {
             var start_time : int = getTimer();
@@ -185,7 +196,8 @@ package org.mangui.hls.demux {
             // check whether last parsed audio PES is complete
             if (_curAudioPES && _curAudioPES.length > 14) {
                 var pes : PES = new PES(_curAudioPES, true);
-                if (pes.len && (pes.data.length - pes.payload - pes.payload_len) >= 0) {
+                // consider that PES with unknown size (length=0 found in header) is complete
+                if (pes.len == 0 || (pes.data.length - pes.payload - pes.payload_len) >= 0) {
                     CONFIG::LOGGING {
                         Log.debug2("TS: complete Audio PES found at end of segment, parse it");
                     }
@@ -206,7 +218,8 @@ package org.mangui.hls.demux {
             // check whether last parsed video PES is complete
             if (_curVideoPES && _curVideoPES.length > 14) {
                 pes = new PES(_curVideoPES, false);
-                if (pes.len && (pes.data.length - pes.payload - pes.payload_len) >= 0) {
+                // consider that PES with unknown size (length=0 found in header) is complete
+                if (pes.len == 0 || (pes.data.length - pes.payload - pes.payload_len) >= 0) {
                     CONFIG::LOGGING {
                         Log.debug2("TS: complete AVC PES found at end of segment, parse it");
                     }
@@ -224,7 +237,7 @@ package org.mangui.hls.demux {
                     }
                 } else {
                     CONFIG::LOGGING {
-                        Log.debug("TS: partial AVC PES at end of segment");
+                        Log.debug("TS: partial AVC PES at end of segment expected/current len:" + pes.payload_len + "/" + ( pes.data.length - pes.payload));
                     }
                     _curVideoPES.position = _curVideoPES.length;
                 }
@@ -312,6 +325,13 @@ package org.mangui.hls.demux {
                     CONFIG::LOGGING {
                         Log.debug("TS/AAC:ADTS frame overflow:" + adts_overflow);
                     }
+                }
+            } else {
+                // no frame found, add data to overflow buffer
+                _adtsFrameOverflow = new ByteArray();
+                _adtsFrameOverflow.writeBytes(pes.data, pes.data.position);
+                CONFIG::LOGGING {
+                    Log.debug("TS/AAC:ADTS frame overflow:" + _adtsFrameOverflow.length);
                 }
             }
         };
@@ -736,7 +756,7 @@ package org.mangui.hls.demux {
                 var sid : uint = _data.readUnsignedShort() & 0x1fff;
                 if (typ == 0x0F) {
                     // ISO/IEC 13818-7 ADTS AAC (MPEG-2 lower bit-rate audio)
-                    audioList.push(new AudioTrack('TS/AAC ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
+                    audioList.push(new AudioTrack('TS/AAC ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0), true));
                 } else if (typ == 0x1B) {
                     // ITU-T Rec. H.264 and ISO/IEC 14496-10 (lower bit-rate video)
                     _avcId = sid;
@@ -746,10 +766,13 @@ package org.mangui.hls.demux {
                 } else if (typ == 0x03 || typ == 0x04) {
                     // ISO/IEC 11172-3 (MPEG-1 audio)
                     // or ISO/IEC 13818-3 (MPEG-2 halved sample rate audio)
-                    audioList.push(new AudioTrack('TS/MP3 ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0)));
+                    audioList.push(new AudioTrack('TS/MP3 ' + audioList.length, AudioTrack.FROM_DEMUX, sid, (audioList.length == 0), false));
                 } else if (typ == 0x15) {
                     // ID3 pid
                     _id3Id = sid;
+                    CONFIG::LOGGING {
+                        Log.debug("TS: Selected ID3 PID: " + _id3Id);
+                    }
                 }
                 // es_info_length
                 var sel : uint = _data.readUnsignedShort() & 0xFFF;
@@ -769,7 +792,7 @@ package org.mangui.hls.demux {
             var audioTrack : AudioTrack = _callback_audioselect(audioList);
             if (audioTrack) {
                 audioPID = audioTrack.id;
-                _audioIsAAC = (audioTrack.title.indexOf("AAC") > -1);
+                _audioIsAAC = audioTrack.isAAC;
                 CONFIG::LOGGING {
                     Log.debug("TS: selected " + (_audioIsAAC ? "AAC" : "MP3") + " PID: " + audioPID);
                 }

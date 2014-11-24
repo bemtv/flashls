@@ -1,3 +1,6 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package org.mangui.chromeless {
     import org.mangui.hls.utils.Log;
     import org.mangui.hls.utils.ScaleVideo;
@@ -66,6 +69,7 @@ package org.mangui.chromeless {
             ExternalInterface.addCallback("getbufferLength", _getbufferLength);
             ExternalInterface.addCallback("getLogDebug", _getLogDebug);
             ExternalInterface.addCallback("getLogDebug2", _getLogDebug2);
+            ExternalInterface.addCallback("getUseHardwareVideoDecoder", _getUseHardwareVideoDecoder);
             ExternalInterface.addCallback("getCapLeveltoStage", _getCapLeveltoStage);
             ExternalInterface.addCallback("getflushLiveURLCache", _getflushLiveURLCache);
             ExternalInterface.addCallback("getstartFromLevel", _getstartFromLevel);
@@ -94,6 +98,7 @@ package org.mangui.chromeless {
             ExternalInterface.addCallback("playerSetseekFromLevel", _setseekFromLevel);
             ExternalInterface.addCallback("playerSetLogDebug", _setLogDebug);
             ExternalInterface.addCallback("playerSetLogDebug2", _setLogDebug2);
+            ExternalInterface.addCallback("playerSetUseHardwareVideoDecoder", _setUseHardwareVideoDecoder);
             ExternalInterface.addCallback("playerCapLeveltoStage", _setCapLeveltoStage);
             ExternalInterface.addCallback("playerSetAudioTrack", _setAudioTrack);
             ExternalInterface.addCallback("playerSetJSURLStream", _setJSURLStream);
@@ -280,6 +285,10 @@ package org.mangui.chromeless {
             return HLSSettings.logDebug2;
         };
 
+        protected function _getUseHardwareVideoDecoder() : Boolean {
+            return HLSSettings.useHardwareVideoDecoder;
+        };
+
         protected function _getCapLeveltoStage() : Boolean {
             return HLSSettings.capLevelToStage;
         };
@@ -377,6 +386,10 @@ package org.mangui.chromeless {
 
         protected function _setLogDebug2(debug2 : Boolean) : void {
             HLSSettings.logDebug2 = debug2;
+        };
+
+        protected function _setUseHardwareVideoDecoder(value : Boolean) : void {
+            HLSSettings.useHardwareVideoDecoder = value;
         };
 
         protected function _setCapLeveltoStage(value : Boolean) : void {

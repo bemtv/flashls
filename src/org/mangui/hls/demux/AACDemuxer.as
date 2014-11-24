@@ -1,4 +1,7 @@
-package org.mangui.hls.demux {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.demux {
     import org.mangui.hls.model.AudioTrack;
     import org.mangui.hls.flv.FLVTag;
 
@@ -7,13 +10,15 @@ package org.mangui.hls.demux {
     CONFIG::LOGGING {
         import org.mangui.hls.utils.Log;
     }
-    /** Constants and utilities for the AAC audio format. **/
+    /** Constants and utilities for the AAC audio format, refer to 
+     *  http://wiki.multimedia.cx/index.php?title=ADTS
+     **/
     public class AACDemuxer implements Demuxer {
-        /** ADTS Syncword (111111111111), ID (MPEG4), layer (00) and protection_absent (1).**/
+        /** ADTS Syncword (0xFFF), ID:0 (MPEG4), layer (00) and protection_absent (1:no CRC).**/
         private static const SYNCWORD : uint = 0xFFF1;
-        /** ADTS Syncword with MPEG2 stream ID (used by e.g. Squeeze 7). **/
+        /** ADTS Syncword (0xFFF), ID:1 (MPEG2), layer (00) and protection_absent (1: no CRC).**/
         private static const SYNCWORD_2 : uint = 0xFFF9;
-        /** ADTS Syncword with MPEG2 stream ID (used by e.g. Envivio 4Caster). **/
+        /** ADTS Syncword (0xFFF), ID:1 (MPEG2), layer (00) and protection_absent (0: CRC).**/
         private static const SYNCWORD_3 : uint = 0xFFF8;
         /** ADTS/ADIF sample rates index. **/
         private static const RATES : Array = [96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350];
@@ -37,6 +42,14 @@ package org.mangui.hls.demux {
         /** cancel demux operation */
         public function cancel() : void {
             _data = null;
+        }
+
+        public function audio_expected() : Boolean {
+            return true;
+        }
+
+        public function video_expected() : Boolean {
+            return false;
         }
 
         public function notifycomplete() : void {
@@ -70,7 +83,7 @@ package org.mangui.hls.demux {
                 i++;
             }
             var audiotracks : Vector.<AudioTrack> = new Vector.<AudioTrack>();
-            audiotracks.push(new AudioTrack('AAC ES', AudioTrack.FROM_DEMUX, 0, true));
+            audiotracks.push(new AudioTrack('AAC ES', AudioTrack.FROM_DEMUX, 0, true, true));
             // report unique audio track. dont check return value as obviously the track will be selected
             _callback_audioselect(audiotracks);
             CONFIG::LOGGING {
@@ -96,8 +109,7 @@ package org.mangui.hls.demux {
                     // Check for ADTS header
                     var short : uint = data.readUnsignedShort();
                     if (short == SYNCWORD || short == SYNCWORD_2 || short == SYNCWORD_3) {
-                        // rewind to sync word
-                        data.position -= 2;
+                        data.position = pos;
                         return true;
                     } else {
                         data.position--;
@@ -115,8 +127,9 @@ package org.mangui.hls.demux {
             // we need at least 6 bytes, 2 for sync word, 4 for frame length
             while ((adts.bytesAvailable > 5) && (short != SYNCWORD) && (short != SYNCWORD_2) && (short != SYNCWORD_3)) {
                 short = adts.readUnsignedShort();
+                adts.position--;
             }
-
+            adts.position++;
             if (short == SYNCWORD || short == SYNCWORD_2 || short == SYNCWORD_3) {
                 var profile : uint = (adts.readByte() & 0xF0) >> 6;
                 // Correcting zero-index of ADIF and Flash playing only LC/HE.
@@ -169,20 +182,15 @@ package org.mangui.hls.demux {
                     if (frame_start) {
                         frames.push(new AudioFrame(frame_start, frame_length, frame_length, samplerate));
                     }
-                    if (short == SYNCWORD_3) {
-                        // ADTS header is 9 bytes.
-                        frame_length = ((adts.readUnsignedInt() & 0x0003FFE0) >> 5) - 9;
-                        frame_start = adts.position + 3;
-                        adts.position += frame_length + 3;
-                    } else {
-                        // ADTS header is 7 bytes.
-                        frame_length = ((adts.readUnsignedInt() & 0x0003FFE0) >> 5) - 7;
-                        frame_start = adts.position + 1;
-                        adts.position += frame_length + 1;
-                    }
+                    // protection_absent=1, crc_len = 0,protection_absent=0,crc_len=2
+                    var crc_len : int = (1 - (short & 0x1)) << 1;
+                    // ADTS header is 7+crc_len bytes.
+                    frame_length = ((adts.readUnsignedInt() & 0x0003FFE0) >> 5) - 7 - crc_len;
+                    frame_start = adts.position + 1 + crc_len;
+                    adts.position += frame_length + 1 + crc_len;
                 } else {
                     CONFIG::LOGGING {
-                        Log.debug("no ADTS header found, probing...");
+                        Log.debug2("no ADTS header found, probing...");
                     }
                     adts.position--;
                 }

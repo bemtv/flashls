@@ -1,4 +1,7 @@
-package org.mangui.hls {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls {
     import org.mangui.hls.model.AudioTrack;
 
     import flash.display.Stage;
@@ -11,9 +14,9 @@ package org.mangui.hls {
     import org.mangui.hls.model.Level;
     import org.mangui.hls.event.HLSEvent;
     import org.mangui.hls.playlist.AltAudioTrack;
-    import org.mangui.hls.playlist.ManifestLoader;
-    import org.mangui.hls.stream.AudioTrackController;
-    import org.mangui.hls.stream.FragmentLoader;
+    import org.mangui.hls.loader.ManifestLoader;
+    import org.mangui.hls.controller.AudioTrackController;
+    import org.mangui.hls.loader.FragmentLoader;
     import org.mangui.hls.stream.HLSNetStream;
 
     CONFIG::LOGGING {

@@ -1,4 +1,7 @@
-package org.mangui.hls.stream {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.controller {
     import org.mangui.hls.HLS;
     import org.mangui.hls.HLSSettings;
     import org.mangui.hls.event.HLSEvent;
@@ -8,7 +11,7 @@ package org.mangui.hls.stream {
     }
 
     /** Class that manages automatic min/low buffer len **/
-    public class AutoBufferManager {
+    public class AutoBufferController {
         /** Reference to the HLS controller. **/
         private var _hls : HLS;
         // max nb of samples used for bw checking. the bigger it is, the more conservative it is.
@@ -19,7 +22,7 @@ package org.mangui.hls.stream {
         private var _minBufferLength : Number;
 
         /** Create the loader. **/
-        public function AutoBufferManager(hls : HLS) : void {
+        public function AutoBufferController(hls : HLS) : void {
             _hls = hls;
             _hls.addEventListener(HLSEvent.MANIFEST_LOADED, _manifestLoadedHandler);
             _hls.addEventListener(HLSEvent.TAGS_LOADED, _fragmentLoadedHandler);

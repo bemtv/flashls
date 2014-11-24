@@ -1,5 +1,7 @@
-package org.mangui.hls.stream {
-    import org.mangui.hls.model.Fragment;
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.controller {
     import org.mangui.hls.playlist.AltAudioTrack;
     import org.mangui.hls.event.HLSEvent;
     import org.mangui.hls.model.AudioTrack;
@@ -78,7 +80,7 @@ package org.mangui.hls.stream {
                             CONFIG::LOGGING {
                                 Log.debug(" audio track[" + audioTrackList.length + "]:" + (isDefault ? "default:" : "alternate:") + altAudioTrack.name);
                             }
-                            audioTrackList.push(new AudioTrack(altAudioTrack.name, AudioTrack.FROM_PLAYLIST, idx, isDefault));
+                            audioTrackList.push(new AudioTrack(altAudioTrack.name, AudioTrack.FROM_PLAYLIST, idx, isDefault, true));
                         }
                     }
                 }
@@ -182,7 +184,7 @@ package org.mangui.hls.stream {
         }
 
         /** triggered by demux, it should return the audio track to be parsed */
-        public function audioTrackSelectionHandler(frag : Fragment, audioTrackList : Vector.<AudioTrack>) : AudioTrack {
+        public function audioTrackSelectionHandler(audioTrackList : Vector.<AudioTrack>) : AudioTrack {
             var audio_track_changed : Boolean = false;
             audioTrackList = audioTrackList.sort(function(a : AudioTrack, b : AudioTrack) : int {
                 return a.id - b.id;
@@ -205,11 +207,9 @@ package org.mangui.hls.stream {
             /* if audio track not defined, or audio from external source (playlist) 
             return null (demux audio not selected) */
             if (_audioTrackId == -1 || _audioTracks[_audioTrackId].source == AudioTrack.FROM_PLAYLIST) {
-                frag.data.audio_expected = false;
                 return null;
             } else {
                 // source is demux,return selected audio track
-                frag.data.audio_expected = true;
                 return _audioTracks[_audioTrackId];
             }
         }

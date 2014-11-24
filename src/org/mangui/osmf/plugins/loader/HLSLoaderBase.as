@@ -1,4 +1,7 @@
-package org.mangui.osmf.plugins.loader {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.osmf.plugins.loader {
     import org.mangui.hls.HLS;
     import org.mangui.hls.event.HLSEvent;
 	import org.mangui.hls.model.Level;
@@ -39,13 +42,14 @@ package org.mangui.osmf.plugins.loader {
         public static function canHandle(resource : MediaResourceBase) : Boolean {
             if (resource !== null && resource is URLResource) {
                 var urlResource : URLResource = URLResource(resource);
-                if (urlResource.url.search(/(https?|file)\:\/\/.*?\m3u8(\?.*)?/i) !== -1) {
+                //  check for m3u/m3u8
+                if (urlResource.url.search(/(https?|file)\:\/\/.*?\m3u(\?.*)?/i) !== -1) {
                     return true;
                 }
 
                 var contentType : Object = urlResource.getMetadataValue("content-type");
                 if (contentType && contentType is String) {
-                    // If the filename doesn't include a .m3u8 extension, but
+                    // If the filename doesn't include a .m3u or m3u8 extension, but
                     // explicit content-type metadata is found on the
                     // URLResource, we can handle it.  Must be either of:
                     // - "application/x-mpegURL"

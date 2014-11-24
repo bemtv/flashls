@@ -1,4 +1,7 @@
-package org.mangui.hls.demux {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.demux {
     import flash.utils.ByteArray;
 
     import org.mangui.hls.model.AudioTrack;
@@ -33,6 +36,14 @@ package org.mangui.hls.demux {
             _data = null;
         }
 
+        public function audio_expected() : Boolean {
+            return true;
+        }
+
+        public function video_expected() : Boolean {
+            return false;
+        }
+
         public function notifycomplete() : void {
             CONFIG::LOGGING {
                 Log.debug("MP3: extracting MP3 tags");
@@ -59,7 +70,7 @@ package org.mangui.hls.demux {
                 i++;
             }
             var audiotracks : Vector.<AudioTrack> = new Vector.<AudioTrack>();
-            audiotracks.push(new AudioTrack('MP3 ES', AudioTrack.FROM_DEMUX, 0, true));
+            audiotracks.push(new AudioTrack('MP3 ES', AudioTrack.FROM_DEMUX, 0, true,false));
             // report unique audio track. dont check return value as obviously the track will be selected
             _callback_audioselect(audiotracks);
             CONFIG::LOGGING {
@@ -85,8 +96,7 @@ package org.mangui.hls.demux {
                     // Check for MP3 header
                     var short : uint = data.readUnsignedShort();
                     if (short == SYNCWORD) {
-                        // rewind to sync word
-                        data.position -= 2;
+                        data.position = pos;
                         return true;
                     } else {
                         data.position--;

@@ -1,18 +1,23 @@
-package org.mangui.hls.playlist {
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ package org.mangui.hls.loader {
+    import org.mangui.hls.playlist.DataUri;
+    import org.mangui.hls.playlist.AltAudioTrack;
+    import org.mangui.hls.playlist.Manifest;
     import org.mangui.hls.constant.HLSPlayStates;
     import org.mangui.hls.constant.HLSTypes;
-    import org.mangui.hls.HLSSettings;
-    import org.mangui.hls.event.HLSError;
-    import org.mangui.hls.HLS;
     import org.mangui.hls.event.HLSEvent;
+    import org.mangui.hls.event.HLSError;
+    import org.mangui.hls.model.Level;
+    import org.mangui.hls.model.Fragment;
+    import org.mangui.hls.HLS;
+    import org.mangui.hls.HLSSettings;
 
     import flash.events.*;
     import flash.net.*;
     import flash.utils.*;
     import flash.external.ExternalInterface;
-
-    import org.mangui.hls.model.Level;
-    import org.mangui.hls.model.Fragment;
 
     CONFIG::LOGGING {
         import org.mangui.hls.utils.Log;
@@ -222,7 +227,7 @@ package org.mangui.hls.playlist {
                         Log.debug("adaptive playlist:\n" + string);
                     }
                     // adaptative playlist, extract levels from playlist, get them and parse them
-                    _levels = Manifest.extractLevels(string, _url);
+                    _levels = Manifest.extractLevels(_hls, string, _url);
                     // retrieve start level from helper function
                     _current_level = startlevel;
                     _hls.dispatchEvent(new HLSEvent(HLSEvent.MANIFEST_PARSED, _levels));
