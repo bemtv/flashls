@@ -171,7 +171,7 @@
         private function _parseLevelPlaylist(string : String, url : String, level : int) : void {
             if (string != null && string.length != 0) {
                 var frags : Vector.<Fragment> = Manifest.getFragments(string, url);
-                for (var i:int = 0; i <= _delay; i++) {
+                for (var i:int = 0; i <= _delay && i < frags.length - 1; i++) {
                     frags.pop();
                 }
                 _last_program_date = frags[frags.length-1].program_date;
